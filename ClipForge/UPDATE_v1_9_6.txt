@@ -1,0 +1,1 @@
+ClipForge v1.9.6 audio file chooser fix. Replace ONLY static/index.html. Preserve app.py, data, .venv, settings. Restart and Ctrl+F5. Added visible native file input, explicit Choose audio file button, selected filename feedback. Browser testing still required.

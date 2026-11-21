@@ -1,0 +1,810 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ClipForge Studio v1.9</title><style>
+:root{font-family:Inter,Segoe UI,Arial,sans-serif;color:#e8edf7;background:#0d1220}*{box-sizing:border-box}body{margin:0}header{padding:20px 30px;border-bottom:1px solid #29334b;display:flex;align-items:center;justify-content:space-between}h1{margin:0;font-size:24px}h2{font-size:17px;margin:0 0 14px}small,.muted{color:#94a3b8}main{display:grid;grid-template-columns:310px 1fr 290px;gap:16px;padding:20px;min-height:calc(100vh - 80px)}section{background:#151d2e;border:1px solid #2b3751;border-radius:12px;padding:18px;min-width:0}input,button,select,textarea{font:inherit}input,textarea,select{width:100%;background:#0e1627;border:1px solid #394764;color:#f0f4fc;border-radius:7px;padding:10px;margin:5px 0 9px}button{background:#466cf0;border:0;border-radius:7px;color:white;padding:10px 12px;cursor:pointer}button.secondary{background:#293851}button:disabled{opacity:.45;cursor:default}.stack{display:flex;flex-direction:column;gap:10px}.row{display:flex;gap:8px;align-items:center}.row>*{min-width:0}.row button{flex-shrink:0}.item{padding:10px;border:1px solid #2c3954;border-radius:8px;cursor:pointer;margin:7px 0;overflow-wrap:anywhere}.item:hover,.item.active{border-color:#7190ff;background:#1e2b48}.item small{display:block;margin-top:5px}audio{width:100%;margin:12px 0}canvas{width:100%;height:140px;background:#0d1629;border-radius:8px;cursor:crosshair}label{font-size:12px;color:#a9b7d1}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}.cliprow{display:grid;grid-template-columns:1fr 90px 90px 32px;gap:7px;align-items:center;margin:8px 0}.cliprow input{margin:0}.cliprow button{padding:8px}.tag{display:inline-block;border-radius:6px;background:#2b3852;padding:4px 7px;font-size:12px;margin:3px}#transcript{max-height:260px;overflow:auto;line-height:1.7}.segment{display:block;padding:5px;cursor:pointer}.segment:hover{background:#293851}#status{font-size:13px;color:#a7b7d3}#soundboard{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.pad.empty{opacity:.45;background:#1b283c}.pad small{display:block;opacity:.7}.pad{font-size:12px;padding:8px 4px}.pad{background:#2b3e66;min-height:65px;overflow-wrap:anywhere}.pad.playing{background:#325c9c;outline:2px solid #8fb5ff}.pad.paused{background:#594e77;outline:2px solid #c6adff}hr{border:0;border-top:1px solid #2d3b55;margin:20px 0}@media(max-width:1050px){main{grid-template-columns:1fr 1fr}main section:nth-child(2){grid-column:span 1}main section:nth-child(3){grid-column:span 2}}@media(max-width:680px){main{display:block}section{margin-bottom:14px}.cliprow{grid-template-columns:1fr 60px 60px 30px}}
+
+.studio{grid-column:1/-1}.studioGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:18px}.studioGrid>div{border:1px solid #35415b;border-radius:10px;padding:13px}.studioGrid h3{font-size:15px;margin:0 0 10px}.mini{font-size:12px}.result{padding:7px;border-bottom:1px solid #34415a;cursor:pointer}.result:hover{background:#263450}progress{width:100%;height:16px}.kbd{font-size:12px;color:#b4c4e7}#timelineItems .item{cursor:default}
+
+/* v1.6.1 visual soundboard editor */
+#padEditorOverlay{position:fixed;inset:0;background:rgba(3,8,20,.82);z-index:1000;display:none;align-items:center;justify-content:center;padding:20px}
+#padEditorOverlay.open{display:flex}
+#padEditorDialog{width:min(1050px,98vw);max-height:92vh;overflow:auto;background:#151d2e;border:1px solid #506388;border-radius:14px;padding:20px;box-shadow:0 25px 90px #0008}
+#padEditorColumns{display:grid;grid-template-columns:minmax(230px,1fr) minmax(320px,2fr);gap:16px}
+#padClipList{max-height:55vh;overflow:auto;border:1px solid #34415b;border-radius:8px;padding:8px}
+.padClipChoice{padding:10px;margin:5px 0;border-radius:7px;background:#25344f;cursor:grab;border:1px solid #405578;overflow-wrap:anywhere}
+.padClipChoice:hover,.editorPad.dragover{border-color:#8fb5ff;background:#34527a}
+#padEditorGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.editorPad{background:#263a5c;border:1px dashed #57749e;min-height:70px;padding:8px;cursor:grab;text-align:left;overflow-wrap:anywhere}
+.editorPad.selected{outline:2px solid #9db6ff}
+/* Pad color remains visible inside the editor, not only on the main soundboard. */
+.editorPad{transition:background-color .12s ease}
+#padEditorFields{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+#padEditorFields input,#padEditorFields select{margin:5px 0}
+@media(max-width:720px){#padEditorColumns{grid-template-columns:1fr}#padEditorGrid{grid-template-columns:repeat(3,minmax(0,1fr))}#padEditorFields{grid-template-columns:1fr}}
+/* v1.8.0 live soundboard fader: inside visible LIVE production controls */
+#liveSoundboardFader{display:block!important;visibility:visible!important;border:2px solid #78a9ff;background:#101c32;border-radius:10px;padding:16px;margin:16px 0;max-width:100%;min-width:0}#liveSoundboardFader .row{flex-wrap:wrap}#liveSoundboardFader button{white-space:normal}#faderShortcut{border:1px solid #78a9ff}
+#liveSoundboardFader input[type=range]{width:100%;accent-color:#76a7ff}
+#liveSoundboardFader .row button{min-height:38px}
+/* v1.7.2 live audio mixer */
+#audioMixer{margin-top:10px;border-top:1px solid #543b54;padding-top:6px}
+.mixerChannels{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.mixerChannel{border:1px solid #45516b;border-radius:9px;background:#151d2e;padding:12px;min-width:0}
+.mixerChannel label{display:block;margin-top:8px}
+.mixerChannel input[type=range]{width:100%;margin:6px 0}
+.mixerChannel input[type=checkbox]{width:auto;margin-right:5px}
+@media(max-width:750px){.mixerChannels{grid-template-columns:1fr}}
+/* v1.7.3 three-channel real-time audio meters */
+.meterShell{height:17px;background:#090f1b;border:1px solid #3d5067;border-radius:5px;overflow:hidden;position:relative;margin:10px 0 4px}
+.meterFill{width:0;height:100%;background:linear-gradient(90deg,#1bba72 0%,#b9d94b 65%,#f3b34b 84%,#e04450 100%);transition:width 85ms linear}
+.meterPeak{position:absolute;top:0;bottom:0;left:0;width:2px;background:#fff;opacity:.85;pointer-events:none}
+.meterScale{display:flex;justify-content:space-between;color:#96a4b9;font-size:10px}
+.meterReadout{font:600 12px ui-monospace,Consolas,monospace;color:#b9d6ed;display:flex;justify-content:space-between;margin-top:5px}
+.meterReadout .clipWarning{color:#ff6b6b}
+/* v1.7.1: live production layout keeps soundboard, microphone and episode mixer visible */
+body.liveMode main{grid-template-columns:minmax(0,1.3fr) minmax(340px,1fr);max-width:1700px;margin:0 auto;align-items:start}
+body.liveMode main>section:nth-child(1),body.liveMode main>section:nth-child(2){display:none}
+body.liveMode main>section:nth-child(3){grid-column:1;min-width:0}
+body.liveMode main>section.studio{grid-column:2;min-width:0}
+body.liveMode .studioGrid{grid-template-columns:minmax(0,1fr)}
+body.liveMode .studioGrid>div:not(.episodeBuilder):not(#teleprompter){display:none}
+body.liveMode #soundboard{grid-template-columns:repeat(4,minmax(0,1fr))}
+body.liveMode .pad{min-height:95px;font-size:15px}
+body.liveMode #livePanel{display:block}
+body.liveMode #liveToggle{background:#b7354b;color:white}
+#livePanel{display:none;border:1px solid #9d4157;background:#251b2d;border-radius:10px;padding:13px;margin:10px 0 16px}
+#livePanel .row{flex-wrap:wrap}
+#livePanel button{min-height:42px}
+#liveRecordingStatus{font-weight:600;color:#f5bdc8}
+#liveToggle{white-space:nowrap}
+#soundboardControls{flex-wrap:wrap}
+#soundboardControls button{max-width:100%}
+body.liveMode .studio h2{margin-bottom:12px}
+@media(max-width:1150px){body.liveMode main{grid-template-columns:minmax(0,1fr)}body.liveMode main>section:nth-child(3),body.liveMode main>section.studio{grid-column:1}}
+@media(max-width:600px){body.liveMode #soundboard{grid-template-columns:repeat(2,minmax(0,1fr))}body.liveMode main{padding:10px}body.liveMode .pad{min-height:75px}#livePanel .row{align-items:stretch}}
+#padEditColor{width:54px;height:39px;padding:2px}#padEditMode{min-width:110px}
+
+/* v1.9.2 formatted teleprompter */
+#teleprompter .teleToolbar{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:6px 0}
+#teleprompter .teleToolbar button{min-width:32px;padding:5px 9px}
+#teleprompter .teleToolbar label{display:inline-flex;align-items:center;gap:5px;font-size:12px}
+#teleprompter .teleToolbar input[type=color]{width:32px;height:27px;padding:2px;cursor:pointer}
+#teleprompter .teleColorPicker{position:absolute;z-index:80;top:95px;left:12px;width:245px;padding:12px;border:1px solid #6b829e;border-radius:10px;background:#18243a;box-shadow:0 12px 35px #000a;display:flex;flex-direction:column;gap:9px}
+#teleprompter .teleColorPicker[hidden]{display:none}
+#teleprompter .teleColorPicker canvas{width:200px;height:200px;align-self:center;cursor:crosshair;touch-action:none}
+#teleprompter .teleColorPicker input[type=range]{width:110px}
+#teleprompter .teleColorPicker input#teleColorHex{width:95px}
+#teleprompter .teleColorSwatch{display:inline-block;width:30px;height:28px;border:1px solid #abb8c8;border-radius:5px;background:#fff}
+#teleprompter{position:relative}
+#teleprompter .teleEditor{min-height:125px;max-height:340px;overflow:auto;background:#0d1422;border:1px solid #50607b;border-radius:6px;padding:10px 12px;color:#f4f6ff;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.55;outline-offset:2px}
+#teleprompter .teleEditor:empty:before{content:attr(data-placeholder);color:#8796af;pointer-events:none}
+#teleprompter .teleEditor:focus{outline:2px solid #36a9b3}
+#teleText,#floatText{white-space:pre-wrap;overflow-wrap:anywhere}
+/* v1.7.4 teleprompter and source-library controls */
+.sourceActions{margin-top:8px}.sourceActions button{padding:6px 10px;font-size:12px}
+#teleprompter{min-width:0;grid-column:span 2;border-color:#694b64;background:#1a2032}body.liveMode #teleprompter{grid-column:1} @media(max-width:850px){#teleprompter{grid-column:1/-1}}
+#teleprompter .teleTitle{justify-content:space-between;flex-wrap:wrap}
+#teleprompter h3{margin:4px 0 8px}
+#teleprompter textarea{min-height:100px;resize:vertical}
+#teleprompter .teleControls{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:10px 0}
+#teleprompter .teleControls label{flex:1 1 160px;font-size:12px}
+#teleprompter .teleControls input[type=range]{width:100%;display:block}
+#teleprompter .teleControls .teleCheck{flex:0 0 auto;white-space:nowrap}
+#teleprompter .teleControls .teleCheck input{width:auto}
+#teleViewport{height:330px;max-height:60vh;overflow-y:auto;overscroll-behavior:contain;background:#05080e;color:#f5f5e9;border:1px solid #536078;border-radius:9px;scrollbar-color:#566a88 #111b2c}
+#teleText{font-size:30px;line-height:1.55;font-weight:600;white-space:pre-wrap;overflow-wrap:anywhere;padding:130px 22px 260px;min-height:100%;text-align:center}
+#teleText.teleMirrored{transform:scaleX(-1)}
+
+/* v1.8 channel strips and recovery */
+#proMixer{border:1px solid #46638b;border-radius:10px;padding:12px;margin:12px 0;background:#101a2d}
+.proChannels{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+.proChannel{background:#18253b;border:1px solid #40516e;border-radius:8px;padding:10px;min-width:0}
+.proChannel input[type=range]{width:100%}.proChannel button{padding:6px 9px;margin:3px}
+.proChannel button.engaged{background:#b34d5e}.proMeter{height:8px;background:#090e18;border-radius:5px;overflow:hidden;margin:7px 0}.proMeter>div{height:100%;background:#39b881;width:0}
+@media(max-width:690px){.proChannels{grid-template-columns:1fr}}
+
+/* v1.8.1 compact controls: retain touch targets and readable labels */
+header{padding:11px 18px}header h1{font-size:21px}main{gap:10px;padding:12px;grid-template-columns:minmax(255px,290px) minmax(0,1fr) minmax(255px,290px)}
+section{padding:12px;border-radius:9px}h2{font-size:16px;margin-bottom:9px}h3{margin-top:7px}
+button{font-size:12px;padding:6px 9px;min-height:31px;border-radius:6px;line-height:1.25}
+input:not([type=range]):not([type=checkbox]):not([type=file]),select,textarea{padding:7px 8px;margin:3px 0 6px;font-size:13px}
+.row{gap:6px;flex-wrap:wrap}.stack{gap:7px}hr{margin:12px 0}.item{padding:7px;margin:5px 0}
+#soundboard{gap:6px}.pad{min-height:52px;padding:6px 4px;font-size:11px}
+#livePanel{padding:10px;margin:8px 0 10px}#livePanel button{min-height:32px}
+#liveSoundboardFader{padding:10px;margin:9px 0}#liveSoundboardFader .row button{min-height:32px}
+#proMixer{padding:9px;margin:8px 0}.proChannels{gap:6px}.proChannel{padding:8px}.proChannel button{padding:5px 7px;margin:2px;min-height:30px}
+.mixerChannels{gap:6px}.mixerChannel{padding:8px}.studioGrid{gap:10px}.studioGrid>div{padding:10px}
+#soundboardControls{flex-wrap:wrap}#soundboardControls button{white-space:normal}
+@media(max-width:1100px){main{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}main>section:nth-child(3){grid-column:1/-1}}
+@media(max-width:690px){main{display:block;padding:8px}main>section{margin-bottom:10px}.proChannels,.mixerChannels{grid-template-columns:1fr}}
+
+/* v1.8.2 consistent semantic control palette */
+:root{--cf-action:#3569c8;--cf-action-hover:#4b82e3;--cf-success:#237b59;--cf-danger:#a83a4b;--cf-warning:#a06b21;--cf-neutral:#33435e;--cf-teal:#167f89}
+button{background:var(--cf-action);border:1px solid #5b86db;transition:filter .12s,background .12s}
+button:hover:not(:disabled){filter:brightness(1.16)}button:focus-visible{outline:2px solid #c4ddff;outline-offset:2px}
+button.secondary{background:var(--cf-neutral);border-color:#526581}
+button[onclick*="save" i],button[onclick*="export" i],button[onclick*="renderEpisode"],button[onclick*="upload()"]{background:var(--cf-success);border-color:#40a67d}
+button[onclick*="delete" i],button[onclick*="stopPad"],button[onclick*="clearSelectedPad"],button[onclick*="remove" i]{background:var(--cf-danger)!important;border-color:#d46c7c}
+button[onclick*="recordToggle"],#liveToggle{background:var(--cf-danger);border-color:#d46c7c}
+button[onclick*="fadeSoundboard"],#faderShortcut,#telePopBtn{background:var(--cf-teal);border-color:#39b7c1}
+button[onclick*="repair" i],button[onclick*="recover" i]{background:var(--cf-warning);border-color:#d7a451}
+body.liveMode #liveToggle{background:#8f2c3e}
+#telePopBtn{white-space:nowrap;min-height:30px}
+#teleprompter .teleTitle .row{flex-wrap:nowrap}
+
+/* v1.9 dedicated episode editor; intentionally isolated from LIVE */
+#episodeEditor{display:none;position:fixed;inset:0;z-index:800;background:#101726;color:#e9f0ff;overflow:auto;padding:15px;box-sizing:border-box}
+#episodeEditor.open{display:block}#episodeEditor button{min-height:30px}#episodeEditor .eeBar{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:9px}
+#episodeEditor .eeBar input,#episodeEditor .eeBar select{width:auto;min-width:90px;margin:0}#episodeEditor .eeGrid{display:grid;grid-template-columns:minmax(175px,235px) minmax(0,1fr);gap:10px}
+#episodeEditor .eePanel{background:#1b263a;border:1px solid #3a4d67;border-radius:9px;padding:10px;min-width:0}#episodeEditor .eeClips{max-height:64vh;overflow:auto}
+#episodeEditor .eeClip{padding:7px;border-bottom:1px solid #3c4b60;cursor:pointer}#episodeEditor .eeClip:hover{background:#34445d}
+#episodeEditor .eeTrack{position:relative;height:64px;border-bottom:1px solid #36475c;background:repeating-linear-gradient(90deg,#1b273a 0,#1b273a 99px,#26354c 100px)}
+#episodeEditor .eeTrackName{width:100px;flex-shrink:0;font-size:12px;padding:9px 5px;background:#233149;border-bottom:1px solid #43536b}
+#episodeEditor .eeLane{display:flex;min-width:0}#episodeEditor .eeScroll{overflow:auto;max-height:62vh;border:1px solid #35465f}
+#episodeEditor .eeBlock{position:absolute;top:9px;height:45px;border:1px solid #80b8f2;border-radius:5px;background:linear-gradient(90deg,#2b678d,#284667);box-sizing:border-box;overflow:hidden;cursor:grab;user-select:none}
+#episodeEditor .eeBlock .eeHandle{position:absolute;top:0;bottom:0;width:11px;z-index:5;cursor:ew-resize;background:rgba(240,246,255,.18);border-left:1px solid #b5d7ff;border-right:1px solid #b5d7ff;touch-action:none}
+#episodeEditor .eeBlock .eeHandle.left{left:0;border-radius:4px 0 0 4px}#episodeEditor .eeBlock .eeHandle.right{right:0;border-radius:0 4px 4px 0}
+#episodeEditor .eeBlock .eeDelete{position:absolute;right:15px;top:3px;z-index:6;width:21px;height:21px;min-height:21px;padding:0;border-radius:4px;background:#9c354a;color:white;font-size:15px;line-height:18px;cursor:pointer}
+#episodeEditor .eeBlock.selected{outline:2px solid #f5bf64;z-index:2}#episodeEditor .eeBlock span{position:relative;z-index:1;display:block;padding:3px 5px;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#episodeEditor .eeBlock canvas{position:absolute;inset:0;width:100%;height:100%;opacity:.48;pointer-events:none}#episodeEditor .eeFields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+#episodeEditor .eeFields label{font-size:11px;color:#c2cde0}#episodeEditor .eeFields input,#episodeEditor .eeFields select{width:100%;box-sizing:border-box}
+#episodeEditor .eeRuler{height:25px;position:relative;background:#233149;font-size:10px;white-space:nowrap}#episodeEditor .eeRuler span{position:absolute;top:4px;border-left:1px solid #9ab1d0;padding-left:3px}
+#episodeEditor .eeNotice{font-size:12px;color:#b9c9e1}#episodeEditor .eeBar .danger{background:#9c354a}
+@media(max-width:800px){#episodeEditor .eeGrid{grid-template-columns:1fr}#episodeEditor .eeClips{max-height:110px}}
+
+/* v1.9.6: make source file selection explicit and accessible */
+.importFileControls{display:flex;flex-direction:column;gap:5px;margin:7px 0 9px;align-items:flex-start}
+.importFileControls input[type=file]{display:block!important;visibility:visible!important;position:static!important;opacity:1!important;pointer-events:auto!important;max-width:100%;min-height:35px;cursor:pointer}
+.importFileControls button{min-height:34px}
+#cfSelectedFile{font-size:12px;color:#b8c9e2;overflow-wrap:anywhere}
+</style></head><body><header><div><h1>✂ ClipForge <small>STUDIO v1.9.6</small></h1><small>Audio capture • Editing • Transcription • Soundboard</small></div><div class="row"><button class="secondary" onclick="goHome()" title="Return to the main dashboard">⌂ Home</button><button class="secondary" onclick="eeOpen()">🎛 Episode Editor</button><span id="status">Ready</span></div></header><main>
+<section><h2>Import audio</h2><label for="file">Upload an audio/video file (up to 500 MB)</label><div class="importFileControls"><input type="file" id="file" accept="audio/*,video/*,.mp3,.wav,.m4a,.aac,.flac,.ogg,.opus,.webm,.mp4,.mov,.mkv" onchange="cfFileChosen(this)"><button type="button" class="secondary" onclick="cfBrowseAudio()">📁 Choose audio file…</button><span id="cfSelectedFile" aria-live="polite">No file selected</span></div><button type="button" onclick="upload()">Import selected file</button><hr><label>Direct HTTPS media file URL</label><input id="url" placeholder="https://example.org/interview.mp3"><input id="urltitle" placeholder="Source title (optional)"><button onclick="importURL()">Import URL</button><div id="youtubePreview" style="display:none;margin-top:12px;padding:12px;border:1px solid #536078;border-radius:8px"><b>YouTube preview</b><p class="muted" style="font-size:12px">Preview this video, or import its audio if you have the rights and permission to do so. Some videos cannot be downloaded due to platform restrictions.</p><div id="youtubePlayer"></div><label style="display:flex;gap:8px;align-items:flex-start;margin:12px 0"><input id="ytAuthorized" type="checkbox" style="width:auto;margin:2px 0">I own this video or have permission and authorization to download and process its audio.</label><button onclick="importYouTube()">Import authorized YouTube audio</button><p><a id="youtubeLink" target="_blank" rel="noopener noreferrer" style="color:#a7bdff">Open original on YouTube</a></p></div><p class="muted" style="font-size:12px">Supports permitted direct audio/video files. YouTube import is available for authorized videos; some restricted videos may not work.</p><hr><h2>Source library</h2><input id="sourceSearch" placeholder="Filter sources" oninput="render()"><div id="sources"></div></section>
+<section><h2 id="editingTitle">Select a source</h2><audio id="player" controls></audio><canvas id="wave" width="1000" height="140" title="Drag selection handles to adjust clip, click to seek"></canvas><div class="row" style="justify-content:space-between"><small id="waveInfo">Select a source to analyze its audio.</small><button class="secondary" onclick="reloadWaveform()">Reload waveform</button></div><div class="row"><label>Wave zoom <input id="zoom" type="range" min="1" max="30" value="1" oninput="drawWave()" style="width:150px"></label><button class="secondary" onclick="zoomToPlayhead()">Center on playhead</button><small class="kbd">Space play/pause · ←/→ ±5s · I/O mark · +/- zoom</small></div><div class="row"><button class="secondary" onclick="mark('start')">Set start at playhead</button><button class="secondary" onclick="mark('end')">Set end at playhead</button><button class="secondary" onclick="preview()">Preview selection</button></div><div class="grid2"><div><label>Start (seconds)</label><input id="start" type="number" min="0" step="0.01" value="0"></div><div><label>End (seconds)</label><input id="end" type="number" min="0" step="0.01" value="10"></div></div><div class="row"><label>Playback speed <select id="playbackSpeed" onchange="player.playbackRate=Number(this.value)"><option value="0.75">0.75×</option><option value="1" selected>1×</option><option value="1.25">1.25×</option><option value="1.5">1.5×</option><option value="2">2×</option></select></label><button class="secondary" onclick="nudgeTrim(-0.1)">Trim −0.1s</button><button class="secondary" onclick="nudgeTrim(0.1)">Trim +0.1s</button></div><div class="row"><label>Fade in (seconds)<input id="fadeIn" type="number" min="0" step="0.1" value="0"></label><label>Fade out (seconds)<input id="fadeOut" type="number" min="0" step="0.1" value="0"></label></div><label>Clip title</label><input id="cliptitle" placeholder="Interesting statement"><label>Tags (comma separated)</label><input id="tags" placeholder="interview, research"><div class="row"><button onclick="addQueue()">Add to batch</button><button class="secondary" onclick="saveOne()">Save clip now</button></div><hr><h2>Batch queue</h2><div id="queue"></div><div class="row"><select id="exportPreset"><option value="mp3">MP3 high quality</option><option value="mp3_voice">MP3 speech 96 kbps mono</option><option value="wav">WAV uncompressed</option></select><button onclick="saveBatch()">Export all queued clips</button></div><hr><div class="row" style="justify-content:space-between"><h2>Transcript</h2><button class="secondary" onclick="transcribe()">Transcribe locally</button></div><div id="transcribeJob" class="muted mini"></div><progress id="transcribeProgress" max="100" value="0" style="display:none"></progress><input id="transcriptSearch" placeholder="Search transcript" oninput="renderTranscript()"><div id="transcript" class="muted">Select a source and transcribe it to get timestamped text.</div></section>
+<section><h2>Clip library</h2><input id="clipSearch" placeholder="Search title or tags" oninput="render()"><div id="clips"></div><hr><h2>Soundboard</h2><p class="muted" style="font-size:12px">Click a pad to play. Click the active pad to pause/resume, or use Stop. Esc stops soundboard playback.</p><div class="row" style="margin:8px 0"><button id="padPause" class="secondary" onclick="togglePadPause()" disabled>⏸ Pause</button><button id="padStop" class="secondary" onclick="stopPad()" disabled>■ Stop</button><small id="padStatus" aria-live="polite">No clip playing</small></div><div class="row"><select id="proProfile" onchange="selectProProfile()" title="Soundboard profile"></select><button class="secondary" onclick="newProProfile()">New</button><button class="secondary" onclick="saveProProfile()">Save</button><button class="secondary" onclick="deleteProProfile()">Delete</button></div>
+<div class="row"><select id="proPage" onchange="selectProPage()"></select><button class="secondary" onclick="addProPage()">+ Page</button><button class="secondary" onclick="renameProPage()">Rename</button></div>
+<div class="row"><button class="secondary" onclick="stopPad()" style="background:#8c3040">■ STOP ALL (Esc)</button><label>Master <input type="range" id="masterPadVolume" min="0" max="100" value="100" oninput="setMasterPadVolume()" style="width:90px"></label></div>
+<p class="muted mini">Keys 1–9 play the first nine pads. Shift+1–9 selects pages. Click Edit Pads for visual assignment. Drag clips onto pads, or drag pads to rearrange. Right-click also opens the editor.</p><div class="row" id="soundboardControls" style="margin:8px 0"><button class="secondary" onclick="openPadEditor()">✎ Edit Pads / Hotkeys</button><button id="liveToggle" class="secondary" onclick="toggleLiveMode()" aria-pressed="false">● LIVE</button><button id="faderShortcut" class="secondary" onclick="showLiveFader()" title="Open LIVE mode and focus the soundboard fader">🎚 Soundboard Fader</button><small class="muted">Drag clips to pads in edit mode</small></div><div id="livePanel" aria-label="Live production controls"><strong>● LIVE PRODUCTION</strong>
+<div id="liveSoundboardFader" aria-label="Soundboard live fader"><div class="row" style="justify-content:space-between;flex-wrap:wrap"><strong>🎚 Soundboard LIVE Fader</strong><span id="sbLiveFaderValue" aria-live="polite">100%</span></div><label for="sbLiveFader">Soundboard playback and recorded mix volume</label><input type="range" id="sbLiveFader" min="0" max="100" value="100" step="1" oninput="setSoundboardLiveFader()" aria-label="Soundboard live volume"><div class="row" style="flex-wrap:wrap"><label style="max-width:115px">Fade duration (s)<input id="sbFadeSeconds" type="number" min="0.2" max="30" step="0.5" value="3" style="width:95px"></label><button class="secondary" onclick="fadeSoundboard('in')">↗ Fade In</button><button class="secondary" onclick="fadeSoundboard('out')">↘ Fade Out</button><button class="secondary" onclick="cancelSoundboardFade()">Cancel Fade</button></div><small class="muted" id="sbFadeStatus" aria-live="polite">Ready. Fade affects playback and the recorded mix without changing the saved clip.</small></div><p class="muted mini">Record your microphone, trigger soundboard pads, and assemble clips into an episode. Mix your microphone and soundboard into a single recording, with independent level controls. Use headphones to avoid feedback.</p><div class="row"><button id="liveRecBtn" onclick="recordToggle('mix')">● Record mixed podcast</button><button class="secondary" onclick="stopPad()">■ Stop soundboard</button><button class="secondary" onclick="document.getElementById('episodeBuilder').scrollIntoView({behavior:'smooth',block:'start'})">Episode builder ↓</button><button class="secondary" onclick="toggleLiveMode()">Exit LIVE</button></div><p id="liveRecordingStatus" aria-live="polite">Recorder idle</p>
+<div id="proMixer"><h3>🎛 Professional Mixer · v1.8</h3><div class="proChannels">
+<div class="proChannel"><strong>🎙 Microphone</strong><div class="proMeter"><div id="proMicMeter"></div></div><button id="proMicMute" onclick="proToggle('mic','mute')">Mute</button><button id="proMicSolo" onclick="proToggle('mic','solo')">Solo</button><label>Microphone level <span id="proMicVal">100%</span></label><input id="proMic" type="range" min="0" max="200" value="100" oninput="proSetLevels()"></div>
+<div class="proChannel"><strong>🔊 Soundboard</strong><div class="proMeter"><div id="proPadMeter"></div></div><button id="proPadMute" onclick="proToggle('pad','mute')">Mute</button><button id="proPadSolo" onclick="proToggle('pad','solo')">Solo</button><label>Soundboard level <span id="proPadVal">100%</span></label><input id="proPad" type="range" min="0" max="200" value="100" oninput="proSetLevels()"></div>
+<div class="proChannel"><strong>🎚 Master</strong><div class="proMeter"><div id="proMasterMeter"></div></div><button id="proMasterMute" onclick="proToggle('master','mute')">Mute</button><label>Master level <span id="proMasterVal">100%</span></label><input id="proMaster" type="range" min="0" max="150" value="100" oninput="proSetLevels()"><label><input type="checkbox" id="proDuck" style="width:auto" onchange="proSetLevels()"> Auto-duck soundboard while speaking</label></div></div>
+<label><input type="checkbox" id="proMultitrack" checked style="width:auto"> Record separate microphone and soundboard tracks alongside master mix</label>
+<div class="row" style="flex-wrap:wrap"><button class="secondary" onclick="proCheckHealth()">Check disk space</button><button class="secondary" onclick="proRecover()">Recover interrupted recordings</button><span class="muted" id="proHealth">Ready</span></div>
+<small class="muted">Each recording is saved as a separate source in the existing library. Recovery keeps best-effort chunks in this browser's IndexedDB; test recovered files before relying on them. Keep enough disk space for three audio files.</small></div><div id="audioMixer" aria-label="Live audio mixer"><h3 style="margin:12px 0 6px">Audio Mixer</h3><div class="mixerChannels">
+<div class="mixerChannel"><strong>🎙 Microphone</strong><div class="meterShell" role="meter" aria-label="Microphone audio level" aria-valuemin="-60" aria-valuemax="0" aria-valuenow="-60" id="mixMicMeter"><div class="meterFill" id="mixMicFill"></div><div class="meterPeak" id="mixMicPeak"></div></div><div class="meterScale"><span>-60</span><span>-30</span><span>-12</span><span>0 dBFS</span></div><div class="meterReadout"><span id="mixMicDb">-∞ dBFS</span><span id="mixMicClip"></span></div><button type="button" class="secondary" id="mixPreviewBtn" onclick="toggleMicPreview()">🎙 Test microphone</button><label for="mixMic">Recording level <span id="mixMicValue">100%</span></label><input id="mixMic" type="range" min="0" max="200" value="100" oninput="setMixerLevels()"><label><input type="checkbox" id="mixMicMonitor" onchange="setMixerLevels()"> Monitor microphone in speakers (headphones recommended)</label></div>
+<div class="mixerChannel"><strong>🔊 Soundboard</strong><div class="meterShell" role="meter" aria-label="Soundboard audio level" aria-valuemin="-60" aria-valuemax="0" aria-valuenow="-60" id="mixPadMeter"><div class="meterFill" id="mixPadFill"></div><div class="meterPeak" id="mixPadPeak"></div></div><div class="meterScale"><span>-60</span><span>-30</span><span>-12</span><span>0 dBFS</span></div><div class="meterReadout"><span id="mixPadDb">-∞ dBFS</span><span id="mixPadClip"></span></div><label for="mixPad">Recording level <span id="mixPadValue">100%</span></label><input id="mixPad" type="range" min="0" max="200" value="100" oninput="setMixerLevels()"><small class="muted">Soundboard playback remains audible. This fader adjusts the recording only.</small></div>
+<div class="mixerChannel"><strong>🎚 Mix output</strong><div class="meterShell" role="meter" aria-label="Mixed output audio level" aria-valuemin="-60" aria-valuemax="0" aria-valuenow="-60" id="mixMasterMeter"><div class="meterFill" id="mixMasterFill"></div><div class="meterPeak" id="mixMasterPeak"></div></div><div class="meterScale"><span>-60</span><span>-30</span><span>-12</span><span>0 dBFS</span></div><div class="meterReadout"><span id="mixMasterDb">-∞ dBFS</span><span id="mixMasterClip"></span></div><label for="mixMaster">Recording master <span id="mixMasterValue">100%</span></label><input id="mixMaster" type="range" min="0" max="150" value="100" oninput="setMixerLevels()"><small class="muted">Affects both channels in the saved file.</small></div></div><small class="muted" id="mixInfo">Mixed recording uses your browser audio engine. Meters display live RMS levels in dBFS (with peak hold and clipping warnings). Use Test microphone to see input levels before recording. Only ClipForge soundboard playback is captured, not other system audio.</small></div>
+</div><div id="soundboard"></div><div id="padProgress" class="muted mini" aria-live="polite"></div><hr><h2>Record microphone</h2><div class="row"><button id="recbtn" onclick="recordToggle()">● Start recording</button><span id="rectime" class="muted"></span></div><p class="muted" style="font-size:12px">Browser microphone permission required. Recording is saved locally when stopped.</p><audio id="padplayer" hidden></audio>
+<div id="padEditorOverlay" role="presentation" onclick="if(event.target===this)closePadEditor()"><div id="padEditorDialog" role="dialog" aria-modal="true" aria-labelledby="padEditorTitle">
+<div class="row" style="justify-content:space-between"><h2 id="padEditorTitle">Soundboard Pad Editor</h2><button class="secondary" onclick="goHome()">⌂ Home</button><button class="secondary" onclick="closePadEditor()">✕ Close</button></div>
+<p class="muted mini">Drag a clip from the library onto a pad to assign it. Drag one pad onto another to swap them. Select any pad to change its label or volume. Changes are local until you click Save Profile.</p>
+<div id="padEditorColumns"><div><label>Find a clip</label><input id="padClipFilter" placeholder="Search saved clips" oninput="renderPadEditor()"><div id="padClipList"></div></div><div><div id="padEditorGrid"></div><div id="padEditorFields"><div><label>Selected pad</label><input id="padEditIndex" readonly><label>Assigned clip</label><select id="padEditClip" onchange="applyPadEditorFields()"></select></div><div><label>Custom label</label><input id="padEditLabel" maxlength="70" oninput="applyPadEditorFields()" placeholder="Use clip title"><label>Pad volume: <span id="padEditVolumeText">100%</span></label><input type="range" id="padEditVolume" min="0" max="100" value="100" oninput="applyPadEditorFields()"></div></div><div class="row"><label>Color <input type="color" id="padEditColor" value="#2b3e66" oninput="applyPadEditorFields()" onchange="applyPadEditorFields()"></label><label>Playback <select id="padEditMode" onchange="applyPadEditorFields()"><option value="toggle">Toggle</option><option value="oneshot">One-shot</option><option value="loop">Loop</option></select></label><label>Hotkey <input id="padEditHotkey" readonly placeholder="Click Capture" style="width:120px"></label><button class="secondary" onclick="capturePadHotkey()">Capture</button><button class="secondary" onclick="clearPadHotkey()">Clear key</button></div><div class="row"><button class="secondary" onclick="clearSelectedPad()">Clear selected pad</button><button onclick="savePadEditorProfile()">Save Profile</button></div></div></div></div></div>
+</section>
+<section class="studio"><h2>ClipForge Studio tools <button class="secondary" onclick="eeOpen()" style="margin-left:10px">🎛 Episode Editor ↗</button></h2><div class="studioGrid">
+<div id="teleprompter" aria-label="Live teleprompter">
+ <div class="row teleTitle"><h3>📜 LIVE Teleprompter</h3><div class="row"><small id="teleState">Ready</small><button type="button" class="secondary" id="telePopBtn" onclick="telePopOut()" title="Floating always-on-top teleprompter when supported by Chrome">▣ Pop out</button></div></div>
+ <label for="teleScript">Script editor (formatted text saved locally in this browser)</label>
+ <div class="teleToolbar" role="toolbar" aria-label="Teleprompter formatting">
+  <button type="button" class="secondary" onmousedown="event.preventDefault()" onclick="teleFormat('bold')" title="Bold selected text"><b>B</b></button>
+  <button type="button" class="secondary" onmousedown="event.preventDefault()" onclick="teleFormat('italic')" title="Italic selected text"><i>I</i></button>
+  <button type="button" class="secondary" onmousedown="event.preventDefault()" onclick="teleFormat('underline')" title="Underline selected text"><u>U</u></button>
+  <button type="button" class="secondary" id="teleColorButton" aria-expanded="false" aria-controls="teleColorPicker" onmousedown="teleRememberSelection()" onclick="teleToggleColorPicker()" title="Choose selected text color from color wheel">🎨 Text color ▾</button>
+  <div id="teleColorPicker" class="teleColorPicker" hidden>
+   <strong>Text color wheel</strong>
+   <canvas id="teleColorWheel" width="200" height="200" role="img" aria-label="Hue and saturation color wheel"></canvas>
+   <label>Brightness <input type="range" id="teleColorValue" min="0" max="100" value="100" oninput="teleWheelBrightness(this.value)"></label>
+   <div class="row"><span id="teleColorSwatch" class="teleColorSwatch"></span><input id="teleColorHex" aria-label="Selected text color hex code" value="#ffffff" maxlength="7" onchange="teleWheelHex(this.value)"></div>
+   <div class="row"><button type="button" onmousedown="event.preventDefault()" onclick="teleApplyWheelColor()">Apply color</button><button type="button" class="secondary" onclick="teleCloseColorPicker()">Close</button></div>
+  </div>
+  <label>Highlight <input type="color" id="teleHighlight" value="#ffff66" onchange="teleFormat('hiliteColor',this.value)"></label>
+  <button type="button" class="secondary" onmousedown="event.preventDefault()" onclick="teleFormat('removeFormat')" title="Remove formatting from selection">Clear style</button>
+ </div>
+ <div id="teleScript" class="teleEditor" role="textbox" aria-multiline="true" contenteditable="true" spellcheck="true" data-placeholder="Paste your podcast script or show notes here…" oninput="teleUpdateScript()" onpaste="telePaste(event)"></div>
+ <div class="row teleControls">
+  <button id="telePlay" onclick="teleToggle()">▶ Start scrolling</button>
+  <button class="secondary" onclick="teleReset()">↺ Reset</button>
+  <label>Speed <span id="teleSpeedLabel">45</span> px/s <input type="range" id="teleSpeed" min="0" max="200" step="5" value="45" oninput="teleUpdateControls()"></label>
+  <label>Text size <span id="teleSizeLabel">30</span> px <input type="range" id="teleSize" min="18" max="64" step="2" value="30" oninput="teleUpdateControls()"></label>
+  <label class="teleCheck"><input type="checkbox" id="teleMirror" onchange="teleUpdateControls()"> Mirror</label>
+ </div>
+ <div id="teleViewport" tabindex="0" aria-label="Scrolling teleprompter text"><div id="teleText"></div></div>
+ <small class="muted">Scroll manually to position the script. Pop out to keep the script visible while mixing. Start/Pause controls scrolling; the recording continues independently. Formatted text and settings are stored only in this browser.</small>
+</div>
+
+<div><h3>Library health</h3><button onclick="checkLibraryHealth()">Scan files</button> <button class="secondary" onclick="repairLibraryHealth()">Repair missing paths</button><div id="libraryHealthResult" class="muted mini"></div></div><div><h3>Storage & backup</h3><label>New imports folder (existing sources stay in place)</label><input id="storageFolder" placeholder="C:\PodcastAudio"><button onclick="saveStorage()">Save media folder</button> <a href="/api/library/backup" style="color:#a7bdff">Download database backup</a><p class="muted mini" id="storageHint"></p></div>
+<div><h3>Silence & audio cleanup</h3><button onclick="detectSilence()">Detect silent sections</button><select id="cleanupMode"><option value="voice">Speech cleanup + loudness</option><option value="gentle">Gentle noise reduction</option></select><button onclick="cleanAudio()">Create cleaned copy</button><div id="silenceResults" class="mini muted"></div></div>
+<div><h3>Clip suggestions</h3><button onclick="suggestClips()">Suggest interesting quotes</button><div id="suggestionResults" class="mini"></div></div>
+<div><h3>Local transcript search</h3><input id="semanticQuery" placeholder="Find words or topics across sources"><button onclick="semanticSearch()">Search all transcripts</button><div class="mini muted">Offline lexical relevance; embeddings not yet enabled.</div><div id="semanticResults" class="mini"></div></div>
+<div style="display:none"><h3>Legacy soundboard profiles</h3><input id="profileName" placeholder="Profile name (e.g. Podcast Live)"><button onclick="saveProfile()">Save current 24 pads</button><select id="profileSelect" onchange="loadProfile()"><option value="">Default: recent clips</option></select><div class="mini muted">Press 1–9 to trigger the first nine pads while not typing.</div></div>
+<div id="episodeBuilder" class="episodeBuilder"><h3>Episode builder · 8 tracks</h3><input id="episodeTitle" placeholder="Episode title"><select id="episodeTrack"><option value="0">Track 1 — Voice</option><option value="1">Track 2 — Interview</option><option value="2">Track 3 — Music</option><option value="3">Track 4 — Effects</option><option value="4">Track 5</option><option value="5">Track 6</option><option value="6">Track 7</option><option value="7">Track 8</option></select><div class="row"><input id="episodeOffset" type="number" value="0" min="0" step="0.1" title="Start at seconds"><input id="episodeGain" type="number" value="1" min="0" max="3" step="0.1" title="Volume multiplier"></div><select id="episodeClip"></select><button onclick="addEpisodeItem()">Add selected clip</button><div id="timelineItems"></div><button onclick="renderEpisode()">Mix and export episode</button><div id="episodes"></div></div>
+<div><h3>Speaker labels</h3><p class="muted mini">Manual speaker labeling is available per transcript segment. Automatic diarization requires a separate model and is not yet included.</p><button onclick="labelSpeakers()">Label transcript speakers</button></div>
+</div></section></main>
+<section id="episodeEditor" aria-label="Episode Editor" role="dialog" aria-modal="true">
+ <div class="eeBar"><h2 style="margin:0 14px 0 0">🎛 Episode Editor · v1.9.1</h2><button class="secondary" onclick="goHome()">⌂ Home</button><button class="secondary" onclick="eeClose()">← Back to Studio</button><button class="secondary" onclick="document.getElementById('episodeEditor').classList.toggle('fullwidth')">Timeline workspace</button><span id="eeStatus" class="eeNotice">Non-destructive editing</span></div>
+ <div class="eeBar"><input id="eeTitle" placeholder="Episode name" value="New episode" style="flex:1;min-width:180px"><button onclick="eeSave()">💾 Save draft</button><button class="secondary" onclick="eeLoad()">Open draft</button><button class="secondary" onclick="eeUndo()">↶ Undo</button><button class="secondary" onclick="eeRedo()">↷ Redo</button><button class="secondary" onclick="eeClear()">New</button></div>
+ <div class="eeGrid"><div class="eePanel"><h3>Saved clips</h3><input id="eeSearch" placeholder="Filter clips" oninput="eeList()"><div class="eeNotice">Click a clip to add it to the selected track.</div><select id="eeAddTrack"><option value="0">Track 1</option><option value="1">Track 2</option><option value="2">Track 3</option><option value="3">Track 4</option><option value="4">Track 5</option><option value="5">Track 6</option><option value="6">Track 7</option><option value="7">Track 8</option></select><div id="eeClips" class="eeClips"></div></div>
+ <div class="eePanel"><div class="eeBar"><button onclick="eePreview()">▶ Preview</button><button class="secondary" onclick="eeStop()">■ Stop</button><label>Zoom <select id="eeZoom" onchange="eeDraw()"><option value="10">10 px/s</option><option value="20" selected>20 px/s</option><option value="40">40 px/s</option><option value="80">80 px/s</option></select></label><label>Format <select id="eeFormat"><option value="mp3">MP3</option><option value="wav">WAV</option></select></label><label><input type="checkbox" id="eeNormalize"> Loudness normalize</label><button id="eeExportBtn" onclick="eeExport()">⬇ Export mix</button></div>
+ <div class="eeNotice">Drag the middle of a clip to move it; drag its left or right edge to trim/resize. Select a clip and click Delete, or use the × button on the clip. Original audio is never deleted. Timeline preview requires Chrome audio permission.</div>
+ <div class="eeScroll" id="eeScroll"><div id="eeRuler" class="eeRuler"></div><div id="eeTracks"></div></div>
+ <h3>Selected clip</h3><div id="eeFields" class="eeFields"><div class="eeNotice">Select a block in the timeline.</div></div><div class="eeBar"><button class="secondary" onclick="eeSplit()">✂ Split at playhead</button><button class="secondary" onclick="eeDuplicate()">Duplicate</button><button class="danger" onclick="eeRemove()">Delete from timeline</button></div>
+ <div class="eeBar"><label>Playhead (seconds) <input id="eePlayhead" type="number" min="0" value="0" step="0.1" style="width:110px"></label><span id="eeDuration" class="eeNotice"></span></div>
+ <div id="eeExports" class="eeNotice"></div></div></div>
+</section>
+<script>
+// v1.9.6: file chooser uses a real browser file input; preserve user-selected File until upload.
+function cfBrowseAudio(){const el=document.getElementById('file');if(!el)return;try{if(typeof el.showPicker==='function'){el.showPicker();return}}catch(e){}el.click()}
+function cfFileChosen(el){const label=document.getElementById('cfSelectedFile');if(label)label.textContent=el.files&&el.files.length?el.files[0].name:'No file selected'}
+
+let waveformPeaks=[],waveDuration=0,waveRequest=0,dragHandle=null,waveCenter=0;let data={sources:[],clips:[]},selected=null,queue=[],recorder=null,recChunks=[],recStart=0,recTick=null,previewTimer=null;
+const $=id=>document.getElementById(id);const player=$('player');const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function status(s){$('status').textContent=s}async function api(url,options={}){let r=await fetch(url,options);if(!r.ok){let t=await r.text();throw Error((()=>{try{return JSON.parse(t).detail}catch{return t}})())}return r.json()}
+async function refresh(){data=await api('/api/library');render()}
+function render(){let s=$('sourceSearch').value.toLowerCase();$('sources').innerHTML=data.sources.filter(x=>x.title.toLowerCase().includes(s)).map(x=>`<div class="item ${selected===x.id?'active':''}" onclick="selectSource('${x.id}')">${esc(x.title)}<small>${esc(x.url||'Local file')}</small><div class="row sourceActions"><button class="secondary" onclick="event.stopPropagation();deleteSource('${x.id}')" title="Remove source from library">🗑 Remove</button></div></div>`).join('')||'<p class="muted">No sources yet</p>';let c=$('clipSearch').value.toLowerCase();let clips=data.clips.filter(x=>(x.title+' '+x.tags).toLowerCase().includes(c));$('clips').innerHTML=clips.map(x=>`<div class="item"><b>${esc(x.title)}</b><small>${x.start.toFixed(1)}–${x.end.toFixed(1)}s · ${esc(x.tags)}</small><div class="row" style="margin-top:8px"><button class="secondary" onclick="playClip('${x.id}')">▶</button><a href="/api/clip/${x.id}/audio" download="${esc(x.title)}.mp3" style="color:#a7bdff">Download</a><button class="secondary" onclick="deleteClip('${x.id}')">Delete</button></div></div>`).join('')||'<p class="muted">No clips saved</p>';$('episodeClip').innerHTML=data.clips.map(x=>`<option value="${x.id}">${esc(x.title)}</option>`).join('');renderProPads();updatePadControls()}
+function reloadWaveform(){if(selected)loadWaveform(selected)}
+function selectSource(id){selected=id;let x=data.sources.find(x=>x.id===id);$('editingTitle').textContent=x.title;player.src='/api/source/'+id+'/audio';player.load();queue=[];waveformPeaks=[];waveDuration=0;$('waveInfo').textContent='Analyzing actual audio samples…';drawWave();loadWaveform(id);renderQueue();render();renderTranscript();player.onloadedmetadata=()=>{$('start').value=0;$('end').value=Math.min(10,player.duration).toFixed(2);drawWave()}}
+async function upload(){let f=$('file').files[0];if(!f){cfBrowseAudio();return};try{status('Importing…');let form=new FormData();form.append('file',f);let r=await api('/api/upload',{method:'POST',body:form});await refresh();selectSource(r.id);status('Imported')}catch(e){alert(e.message);status('Import failed')}}
+function youtubeId(raw){try{let u=new URL(raw.trim());let h=u.hostname.toLowerCase();if(h==='youtu.be'||h==='www.youtu.be')return u.pathname.split('/')[1];if(['youtube.com','www.youtube.com','m.youtube.com','music.youtube.com','youtube-nocookie.com','www.youtube-nocookie.com'].includes(h)){if(u.pathname==='/watch')return u.searchParams.get('v');let m=u.pathname.match(/^\/(?:shorts|live|embed)\/([^/]+)/);return m&&m[1]}return null}catch{return null}}
+function showYouTube(){let id=youtubeId($('url').value);let panel=$('youtubePreview');if(!id||!/^[a-zA-Z0-9_-]{11}$/.test(id)){panel.style.display='none';$('youtubePlayer').replaceChildren();return false}panel.style.display='block';let frame=document.createElement('iframe');frame.src='https://www.youtube-nocookie.com/embed/'+encodeURIComponent(id);frame.title='YouTube preview';frame.allow='accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture';frame.allowFullscreen=true;frame.style='width:100%;aspect-ratio:16/9;border:0';$('youtubePlayer').replaceChildren(frame);$('youtubeLink').href='https://www.youtube.com/watch?v='+encodeURIComponent(id);return true}
+$('url').addEventListener('change',showYouTube);
+async function importYouTube(){if(!$('ytAuthorized').checked)return alert('Confirm that you are authorized to download this video.');try{status('Downloading and converting authorized YouTube audio… this may take a few minutes');let r=await api('/api/import-youtube',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:$('url').value,title:$('urltitle').value,authorized:true})});await refresh();selectSource(r.id);status('YouTube audio imported')}catch(e){alert(e.message);status('YouTube import failed')}}
+async function importURL(){if(showYouTube()){status('YouTube preview ready; upload an authorized audio copy to clip.');return}try{status('Downloading permitted media…');let r=await api('/api/import-url',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:$('url').value,title:$('urltitle').value})});await refresh();selectSource(r.id);status('Imported')}catch(e){alert(e.message);status('Import failed')}}
+function mark(which){$(which).value=player.currentTime.toFixed(2)}function preview(){clearInterval(previewTimer);player.currentTime=Number($('start').value);player.play();previewTimer=setInterval(()=>{if(player.currentTime>=Number($('end').value)){player.pause();clearInterval(previewTimer)}},80)}
+function entry(){return{title:$('cliptitle').value||'Clip '+(queue.length+1),start:Number($('start').value),end:Number($('end').value),tags:$('tags').value,fade_in:Number($('fadeIn').value),fade_out:Number($('fadeOut').value)}}function valid(e){if(!selected)throw Error('Select a source first');if(!Number.isFinite(e.start)||!Number.isFinite(e.end)||e.start<0||e.end<=e.start||e.end>player.duration+0.1)throw Error('Choose a valid start/end within the source');if(!Number.isFinite(e.fade_in)||!Number.isFinite(e.fade_out)||e.fade_in<0||e.fade_out<0||e.fade_in+e.fade_out>e.end-e.start)throw Error('Fade durations exceed clip length')}function addQueue(){try{let e=entry();valid(e);queue.push(e);renderQueue()}catch(e){alert(e.message)}}function renderQueue(){$('queue').innerHTML=queue.map((x,i)=>`<div class="cliprow"><span>${esc(x.title)}</span><small>${x.start.toFixed(1)}s</small><small>${x.end.toFixed(1)}s</small><button class="secondary" onclick="queue.splice(${i},1);renderQueue()">×</button></div>`).join('')||'<p class="muted">No clips queued</p>'}
+async function exportClips(items){try{status('Rendering clips…');await api('/api/clips/batch',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({source_id:selected,clips:items,preset:$('exportPreset').value})});queue=[];renderQueue();await refresh();status('Clips saved')}catch(e){alert(e.message);status('Export failed')}}function saveOne(){try{let e=entry();valid(e);exportClips([e])}catch(e){alert(e.message)}}function saveBatch(){if(queue.length)exportClips(queue);else alert('Add clips to the queue first')}
+function updatePadControls(){let a=$('padplayer'),active=!!activePadClip;$('padPause').disabled=!active;$('padStop').disabled=!active;$('padPause').textContent=a.paused?'▶ Resume':'⏸ Pause';let clip=data.clips.find(c=>c.id===activePadClip);$('padStatus').textContent=active?(a.paused?'Paused: ':'Playing: ')+(clip?.title||'Clip'):'No clip playing'}
+function refreshPadUI(){renderProPads();updatePadControls()}
+function playClip(id){let a=$('padplayer');if(activePadClip===id){if(a.paused){if(a.ended)a.currentTime=0;a.play().catch(e=>{status('Soundboard playback failed: '+e.message);refreshPadUI()})}else a.pause();refreshPadUI();return}a.pause();activePadClip=id;a.src='/api/clip/'+encodeURIComponent(id)+'/audio';a.currentTime=0;setMasterPadVolume();a.play().catch(e=>{status('Soundboard playback failed: '+e.message);refreshPadUI()});refreshPadUI()}
+function togglePadPause(){if(!activePadClip)return;playClip(activePadClip)}
+function stopPad(){let a=$('padplayer');a.pause();a.removeAttribute('src');a.load();activePadClip=null;refreshPadUI()}
+$('padplayer').addEventListener('play',refreshPadUI);$('padplayer').addEventListener('pause',refreshPadUI);$('padplayer').addEventListener('ended',()=>{activePadClip=null;refreshPadUI()});$('padplayer').addEventListener('error',()=>{status('Soundboard could not load audio. Check that the clip file exists.');activePadClip=null;refreshPadUI()});
+async function deleteSource(id){
+ const source=data.sources.find(s=>s.id===id);if(!source)return;
+ const dependent=data.clips.filter(c=>c.source_id===id).length;
+ const message='PERMANENTLY DELETE source "'+source.title+'"?\n\nThe original source audio file will be DELETED FROM DISK and cannot be recovered from the database backup.\nSaved clips: '+dependent+' (these will be kept).\nThe source transcript and library entry will also be removed.\n\nA database backup will be made first. Continue?';
+ if(!confirm(message))return;
+ try{
+  await api('/api/source/'+encodeURIComponent(id),{method:'DELETE'});
+  if(selected===id){selected=null;player.pause();player.removeAttribute('src');player.load();$('editingTitle').textContent='Select a source';waveformPeaks=[];waveDuration=0;$('waveInfo').textContent='Select a source to analyze its audio.';$('transcript').textContent='Select a source.';drawWave();}
+  await refresh();status('Source removed; original audio deleted from disk (if present). Saved clips preserved.');
+ }catch(e){alert('Could not remove source: '+e.message)}
+}
+async function deleteClip(id){if(!confirm('Delete this clip?'))return;if(activePadClip===id)stopPad();await api('/api/clip/'+id,{method:'DELETE'});refresh()}
+async function transcribe(){if(!selected)return alert('Select a source');try{status('Starting local transcription…');let r=await api('/api/source/'+selected+'/transcribe',{method:'POST'});$('transcribeProgress').style.display='block';while(true){await new Promise(resolve=>setTimeout(resolve,1200));let j=await api('/api/jobs/'+r.job_id);$('transcribeProgress').value=j.progress;$('transcribeJob').textContent=j.message;status(j.message);if(j.state==='error')throw Error(j.message);if(j.state==='complete')break}await refresh();renderTranscript();status('Transcription complete')}catch(e){alert(e.message);status('Transcription failed: '+e.message)}finally{$('transcribeProgress').style.display='none'}}
+function renderTranscript(){let x=data.sources.find(x=>x.id===selected),segments=[];try{segments=JSON.parse(x?.transcript||'[]')}catch{}let q=$('transcriptSearch').value.toLowerCase();$('transcript').innerHTML=segments.filter(s=>s.text.toLowerCase().includes(q)).map(s=>`<span class="segment" onclick="player.currentTime=${s.start};player.play()"><small>[${s.start.toFixed(1)}s]</small> ${s.speaker?'['+esc(s.speaker)+'] ':''}${esc(s.text)}</span>`).join('')||'No matching transcript segments.'}
+// Live recording: Web Audio mixes mic + the existing soundboard element into one MediaRecorder stream.
+let mixerCtx=null,mixerPadSource=null,mixerPadRecordGain=null,mixerPadLiveGain=null,mixerMicSource=null,mixerMicGain=null,mixerMicMonitorGain=null,mixerMasterGain=null,mixerDestination=null,mixerMicStream=null,recordMode='mic',recordBusy=false,mixerMicPreview=false,mixerMeters=null,mixerMeterBuffers=null,mixerMeterPeaks={Mic:{db:-60,until:0},Pad:{db:-60,until:0},Master:{db:-60,until:0}},mixerMeterRAF=0;
+function createMeter(analyser){analyser.fftSize=2048;analyser.smoothingTimeConstant=.25;return analyser}
+function updateMixerMeters(){
+ if(!mixerCtx||!mixerMeters)return;
+ const now=performance.now();
+ for(const name of ['Mic','Pad','Master']){
+  const analyser=mixerMeters[name],buf=mixerMeterBuffers[name];analyser.getFloatTimeDomainData(buf);
+  let power=0,peak=0;for(let i=0;i<buf.length;i++){const x=buf[i];power+=x*x;peak=Math.max(peak,Math.abs(x))}
+  const rms=Math.sqrt(power/buf.length),db=rms>0?20*Math.log10(rms):-Infinity;
+  const pct=Math.max(0,Math.min(100,(Math.max(-60,db)+60)/60*100));
+  const fill=$('mix'+name+'Fill');if(fill)fill.style.width=pct+'%';
+  const label=$('mix'+name+'Db');if(label)label.textContent=Number.isFinite(db)?db.toFixed(1)+' dBFS':'-∞ dBFS';
+  const meter=$('mix'+name+'Meter');if(meter)meter.setAttribute('aria-valuenow',String(Number.isFinite(db)?Math.max(-60,Math.min(0,Math.round(db))):-60));
+  const state=mixerMeterPeaks[name];const peakDb=peak>0?20*Math.log10(peak):-Infinity;
+  if(peakDb>=state.db||now>=state.until){state.db=peakDb;state.until=now+1250}
+  const hold=$('mix'+name+'Peak');if(hold)hold.style.left=Math.max(0,Math.min(99.5,(Math.max(-60,state.db)+60)/60*100))+'%';
+  const clip=$('mix'+name+'Clip');if(clip){if(peak>=.995)state.clipUntil=now+1800;clip.textContent=(state.clipUntil||0)>now?'CLIP!':'';clip.className=(state.clipUntil||0)>now?'clipWarning':''}
+ }
+ mixerMeterRAF=requestAnimationFrame(updateMixerMeters);
+}
+function startMixerMeters(){if(mixerMeterRAF)return;mixerMeterRAF=requestAnimationFrame(updateMixerMeters)}
+function connectMixerMic(stream){
+ if(mixerMicSource){try{mixerMicSource.disconnect()}catch{}mixerMicSource=null}
+ mixerMicStream=stream;mixerMicSource=mixerCtx.createMediaStreamSource(stream);
+ mixerMicSource.connect(mixerMicGain);mixerMicSource.connect(mixerMicMonitorGain);setMixerLevels();
+}
+async function toggleMicPreview(){
+ if(recordBusy||recorder?.state==='recording'){status('Stop recording before changing microphone test mode');return}
+ if(mixerMicPreview){mixerMicPreview=false;stopMixerMic();$('mixPreviewBtn').textContent='🎙 Test microphone';status('Microphone test stopped');return}
+ try{
+  if(!navigator.mediaDevices?.getUserMedia)throw Error('Microphone requires localhost or HTTPS');
+  await initMixer();const stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true}});
+  connectMixerMic(stream);mixerMicPreview=true;$('mixPreviewBtn').textContent='■ Stop mic test';status('Microphone test active — meters show input levels without recording');
+ }catch(e){status('Microphone test unavailable: '+e.message);alert('Microphone test unavailable: '+e.message)}
+}
+function setMixerLevels(){
+ const v=id=>Number($(id)?.value||0)/100;
+ ['Mic','Pad','Master'].forEach(n=>{const el=$('mix'+n+'Value');if(el)el.textContent=Math.round(v('mix'+n)*100)+'%'});
+ if(!mixerCtx)return;
+ const t=mixerCtx.currentTime;
+ mixerMicGain?.gain.setTargetAtTime(v('mixMic'),t,.015);
+ mixerPadRecordGain?.gain.setTargetAtTime(v('mixPad'),t,.015);
+ mixerMasterGain?.gain.setTargetAtTime(v('mixMaster'),t,.015);
+ mixerMicMonitorGain?.gain.setTargetAtTime($('mixMicMonitor')?.checked?v('mixMic'):0,t,.015);proSetLevels();
+}
+async function initMixer(){
+ if(!mixerCtx){
+  const AudioCtx=window.AudioContext||window.webkitAudioContext;
+  if(!AudioCtx)throw Error('Web Audio API unavailable in this browser');
+  mixerCtx=new AudioCtx();mixerDestination=mixerCtx.createMediaStreamDestination();
+  mixerMasterGain=mixerCtx.createGain();mixerMasterGain.connect(mixerDestination);
+  mixerMeters={Mic:createMeter(mixerCtx.createAnalyser()),Pad:createMeter(mixerCtx.createAnalyser()),Master:createMeter(mixerCtx.createAnalyser())};
+  mixerMeterBuffers=Object.fromEntries(Object.entries(mixerMeters).map(([key,a])=>[key,new Float32Array(a.fftSize)]));
+  mixerMasterGain.connect(mixerMeters.Master);
+  mixerPadRecordGain=mixerCtx.createGain();proPadDest=mixerCtx.createMediaStreamDestination();mixerPadRecordGain.connect(proPadDest);mixerPadRecordGain.connect(mixerMasterGain);mixerPadRecordGain.connect(mixerMeters.Pad);
+  // MediaElementAudioSource can be created only once for an HTML audio element.
+  mixerPadSource=mixerCtx.createMediaElementSource($('padplayer'));
+  mixerPadLiveGain=mixerCtx.createGain();
+  mixerPadSource.connect(mixerPadLiveGain);
+  mixerPadLiveGain.connect(mixerCtx.destination); // speaker playback follows live fader
+  mixerPadLiveGain.connect(mixerPadRecordGain); // recording follows the same live fader
+  mixerMicGain=mixerCtx.createGain();proMicDest=mixerCtx.createMediaStreamDestination();mixerMicGain.connect(proMicDest);mixerMicGain.connect(mixerMasterGain);mixerMicGain.connect(mixerMeters.Mic);
+  mixerMicMonitorGain=mixerCtx.createGain();mixerMicMonitorGain.connect(mixerCtx.destination);
+ }
+ await mixerCtx.resume();setMixerLevels();proSetLevels();syncSoundboardLiveGain();startMixerMeters();
+}
+function stopMixerMic(){
+ if(mixerMicStream){mixerMicStream.getTracks().forEach(t=>t.stop());mixerMicStream=null}
+ if(mixerMicSource){try{mixerMicSource.disconnect()}catch{}mixerMicSource=null}
+}
+// v1.8: non-destructive recording stems and browser recovery.
+let proMicDest=null,proPadDest=null,proStemRecorders=[],proStemBuffers=[],proSession=null,proDuckingTimer=null,proDuckLevel=1,proPendingWrites=[];
+const proState={mic:{mute:false,solo:false},pad:{mute:false,solo:false},master:{mute:false}};
+function proToggle(ch,kind){proState[ch][kind]=!proState[ch][kind];const b=$('pro'+ch[0].toUpperCase()+ch.slice(1)+(kind==='mute'?'Mute':'Solo'));if(b)b.classList.toggle('engaged',proState[ch][kind]);proSetLevels()}
+function proSetLevels(){
+ if(!$('proMic'))return;
+ for(const ch of ['Mic','Pad','Master'])$('pro'+ch+'Val').textContent=$('pro'+ch).value+'%';
+ if(!mixerCtx)return;
+ const t=mixerCtx.currentTime,solo=proState.mic.solo||proState.pad.solo;
+ const mic=Number($('mixMic').value)/100*Number($('proMic').value)/100*(proState.mic.mute||solo&&!proState.mic.solo?0:1);
+ const pad=Number($('mixPad').value)/100*Number($('proPad').value)/100*(proState.pad.mute||solo&&!proState.pad.solo?0:1)*proDuckLevel;
+ const master=Number($('mixMaster').value)/100*Number($('proMaster').value)/100*(proState.master.mute?0:1);
+ mixerMicGain.gain.setTargetAtTime(mic,t,.018);mixerPadRecordGain.gain.setTargetAtTime(pad,t,.018);mixerMasterGain.gain.setTargetAtTime(master,t,.018);
+}
+function proUpdateMeters(){for(const ch of ['Mic','Pad','Master']){const a=mixerMeters?.[ch],b=mixerMeterBuffers?.[ch];if(!a||!b)continue;a.getFloatTimeDomainData(b);let peak=0;for(let i=0;i<b.length;i++)peak=Math.max(peak,Math.abs(b[i]));const el=$('pro'+ch+'Meter');if(el)el.style.width=Math.min(100,peak*100)+'%'}if(mixerCtx&&$('proDuck')?.checked&&mixerMeterBuffers?.Mic){const a=mixerMeters.Mic,b=mixerMeterBuffers.Mic;a.getFloatTimeDomainData(b);let sum=0;for(let i=0;i<b.length;i++)sum+=b[i]*b[i];const target=Math.sqrt(sum/b.length)>.035?.3:1;proDuckLevel+= (target-proDuckLevel)*(target<proDuckLevel?.12:.025);proSetLevels()}else if(proDuckLevel!==1){proDuckLevel=1;proSetLevels()}requestAnimationFrame(proUpdateMeters)}
+function proOpenDb(){return new Promise((resolve,reject)=>{const r=indexedDB.open('ClipForgeRecordingRecovery',1);r.onupgradeneeded=()=>r.result.createObjectStore('chunks',{keyPath:'key'});r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)})}
+async function proStore(key,blob){const d=await proOpenDb();return new Promise((resolve,reject)=>{const tx=d.transaction('chunks','readwrite');tx.objectStore('chunks').put({key,blob,time:Date.now()});tx.oncomplete=()=>{d.close();resolve()};tx.onerror=()=>{d.close();reject(tx.error)}})}
+function proQueueRecovery(key,blob){const pending=proStore(key,blob).catch(err=>{status('Recovery storage unavailable: '+err.message);return false});proPendingWrites.push(pending);pending.finally(()=>{const i=proPendingWrites.indexOf(pending);if(i>=0)proPendingWrites.splice(i,1)});}
+async function proFlushRecovery(){await Promise.allSettled([...proPendingWrites])}
+async function proReadAll(){const d=await proOpenDb();return new Promise((resolve,reject)=>{const tx=d.transaction('chunks','readonly'),r=tx.objectStore('chunks').getAll();r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);tx.oncomplete=()=>d.close()})}
+async function proDeleteKeys(keys){const d=await proOpenDb();return new Promise((resolve,reject)=>{const tx=d.transaction('chunks','readwrite');for(const key of keys)tx.objectStore('chunks').delete(key);tx.oncomplete=()=>{d.close();resolve()};tx.onerror=()=>{d.close();reject(tx.error)}})}
+async function proRecover(){try{const entries=await proReadAll();if(!entries.length){alert('No interrupted recording chunks found.');return}const groups={};for(const e of entries){const parts=e.key.split('|');const k=parts.slice(0,2).join('|');(groups[k]??=[]).push(e)}let count=0;for(const [key,arr] of Object.entries(groups)){arr.sort((a,b)=>Number(a.key.split('|')[2])-Number(b.key.split('|')[2]));const [session,track]=key.split('|');const blob=new Blob(arr.map(x=>x.blob),{type:'audio/webm'});if(!blob.size)continue;const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='recovered_'+track+'_'+session+'.webm';a.click();setTimeout(()=>URL.revokeObjectURL(url),60000);count++}if(count&&confirm('Downloaded '+count+' recoverable recording(s). Delete their recovery chunks from this browser?'))await proDeleteKeys(entries.map(e=>e.key));}catch(e){alert('Recovery unavailable: '+e.message)}}
+async function proCheckHealth(){try{const r=await api('/api/recording/health');$('proHealth').textContent='Free space: '+r.free_gb+' GB'+(r.warning?' ⚠ LOW DISK SPACE':'');if(r.warning)alert('Low disk space: '+r.free_gb+' GB remaining. Recording may fail.')}catch(e){$('proHealth').textContent='Disk check failed: '+e.message}}
+async function proUploadStem(blob,label,session){if(!blob.size)return;const ext=blob.type.includes('ogg')?'.ogg':'.webm';const fd=new FormData();fd.append('file',blob,'podcast_'+label+'_'+session+ext);fd.append('title','Podcast '+label+' '+session);await api('/api/upload',{method:'POST',body:fd})}
+function proBeginStems(mime){proStemRecorders=[];proStemBuffers=[];if(!$('proMultitrack')?.checked)return;
+ for(const [name,stream] of [['microphone',proMicDest.stream],['soundboard',proPadDest.stream]]){
+ const r=new MediaRecorder(stream,mime?{mimeType:mime}:undefined),chunks=[];let seq=0;
+ r.ondataavailable=e=>{if(e.data.size){chunks.push(e.data);proQueueRecovery(proSession+'|'+name+'|'+seq++,e.data)}};
+ r.onerror=e=>status('Stem recording error: '+(e.error?.message||'Unknown'));
+ proStemRecorders.push(r);proStemBuffers.push({name,chunks,mime:r.mimeType||'audio/webm'});r.start(1000);
+ }}
+async function proFinishStems(){const waiting=proStemRecorders.map(r=>new Promise(resolve=>{if(r.state==='inactive')return resolve();r.addEventListener('stop',resolve,{once:true});r.stop()}));await Promise.all(waiting);const failures=[];for(const x of proStemBuffers){try{await proUploadStem(new Blob(x.chunks,{type:x.mime}),x.name,proSession)}catch(e){failures.push(x.name+': '+e.message);const blob=new Blob(x.chunks,{type:x.mime});const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='unsaved_'+x.name+'_'+proSession+'.webm';a.click();setTimeout(()=>URL.revokeObjectURL(url),60000)}}proStemRecorders=[];proStemBuffers=[];return failures}
+function chooseRecordMime(){return ['audio/webm;codecs=opus','audio/webm','audio/ogg;codecs=opus',''].find(m=>!m||MediaRecorder.isTypeSupported(m))||''}
+function updateRecordButtons(){
+ const running=recorder?.state==='recording';
+ $('recbtn').textContent=running?'■ Stop recording':'● Start recording';
+ $('recbtn').disabled=recordBusy;
+ const live=$('liveRecBtn');if(live){live.textContent=running?'■ Stop '+(recordMode==='mix'?'mixed':'microphone')+' recording':'● Record mixed podcast';live.disabled=recordBusy}
+ updateLiveRecordingStatus();
+}
+async function recordToggle(requestedMode='mic'){
+ if(recordBusy)return;
+ if(recorder?.state==='recording'){recordBusy=true;updateRecordButtons();try{recorder.stop()}catch(e){recordBusy=false;updateRecordButtons();status('Could not stop recording: '+e.message)}return}
+ if(recordBusy)return;
+ recordBusy=true;updateRecordButtons();
+ let micStream=null;
+ try{
+  if(!navigator.mediaDevices?.getUserMedia)throw Error('Microphone permission requires localhost or a secure browser context');
+  if(!window.MediaRecorder)throw Error('MediaRecorder is unavailable');
+  recordMode=requestedMode==='mix'?'mix':'mic';
+  micStream=(recordMode==='mix'&&mixerMicPreview&&mixerMicStream?.active)?mixerMicStream:await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true}});
+  let captureStream=micStream;
+  if(recordMode==='mix'){
+   await initMixer();
+   if(!mixerMicPreview||mixerMicStream!==micStream){stopMixerMic();connectMixerMic(micStream)}
+   setMixerLevels();captureStream=mixerDestination.stream;
+  }
+  const mime=chooseRecordMime();recChunks=[];proSession=new Date().toISOString().replace(/[:.]/g,'-');proPendingWrites=[];if(recordMode==='mix')proBeginStems(mime);let proSeq=0;
+  recorder=new MediaRecorder(captureStream,mime?{mimeType:mime}:undefined);
+  const thisRecorder=recorder;
+  recorder.ondataavailable=e=>{if(e.data.size){recChunks.push(e.data);if(recordMode==='mix')proQueueRecovery(proSession+'|master|'+proSeq++,e.data)}};
+  recorder.onerror=e=>{status('Recording error: '+(e.error?.message||'Unknown error'))};
+  recorder.onstop=async()=>{
+   clearInterval(recTick);recTick=null;
+   if(recordMode==='mix'){if(!mixerMicPreview)stopMixerMic()}else micStream.getTracks().forEach(t=>t.stop());
+   recordBusy=true;updateRecordButtons();
+   let stemFailures=[];if(recordMode==='mix')stemFailures=await proFinishStems();
+   const blob=new Blob(recChunks,{type:thisRecorder.mimeType||'audio/webm'});
+   const stamp=new Date().toISOString().replace(/[:.]/g,'-');
+   const filename=(recordMode==='mix'?'podcast_mix_':'microphone_')+stamp+(blob.type.includes('ogg')?'.ogg':'.webm');
+   const fd=new FormData();fd.append('file',blob,filename);fd.append('title',(recordMode==='mix'?'Live podcast mix ':'Microphone recording ')+new Date().toLocaleString());
+   try{
+    if(!blob.size)throw Error('Recording is empty');
+    status('Saving recording to source library…');const r=await api('/api/upload',{method:'POST',body:fd});
+    await refresh();selectSource(r.id);status('Recording saved: '+filename+(stemFailures.length?' (stem errors: '+stemFailures.join('; ')+')':''));if(!stemFailures.length&&recordMode==='mix'){await proFlushRecovery();const all=await proReadAll().catch(()=>[]);await proDeleteKeys(all.filter(e=>e.key.startsWith(proSession+'|')).map(e=>e.key)).catch(()=>{})}
+   }catch(e){
+    status('Could not save recording: '+e.message);
+    // Preserve the captured audio if the local backend is unavailable.
+    const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=filename;a.click();setTimeout(()=>URL.revokeObjectURL(url),60000);
+    alert('Could not save recording to ClipForge: '+e.message+'\nA local download was started as a fallback.');
+   }finally{recordBusy=false;recorder=null;$('rectime').textContent='';updateRecordButtons()}
+  };
+  recorder.start(1000);recStart=Date.now();recTick=setInterval(()=>{$('rectime').textContent=Math.floor((Date.now()-recStart)/1000)+'s';updateLiveRecordingStatus()},300);
+  status(recordMode==='mix'?'Recording microphone + soundboard mix':'Recording microphone');
+ }catch(e){
+  if(micStream&&!mixerMicPreview)micStream.getTracks().forEach(t=>t.stop());if(!mixerMicPreview)stopMixerMic();
+  status('Could not start recording: '+e.message);alert('Recording unavailable: '+e.message);
+ }finally{recordBusy=false;updateRecordButtons()}
+}
+async function loadWaveform(id){
+ const request=++waveRequest;
+ try{status('Analyzing audio waveform…');const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),120000);let result;try{result=await api('/api/source/'+id+'/waveform',{signal:controller.signal})}finally{clearTimeout(timer)}
+ if(request!==waveRequest||selected!==id)return;
+ waveformPeaks=result.peaks;waveDuration=result.duration;waveCenter=waveDuration/2;drawWave();$('waveInfo').textContent='REAL AUDIO · '+waveformPeaks.length+' peak windows · '+waveDuration.toFixed(1)+'s';status('Real waveform ready');
+ }catch(e){if(request===waveRequest){status('Waveform unavailable: '+(e.name==='AbortError'?'analysis timed out':e.message));$('waveInfo').textContent='ERROR: '+(e.name==='AbortError'?'Analysis timed out after 2 minutes':e.message);drawWave()}}
+}
+function drawWave(){
+ const canvas=$('wave'),ctx=canvas.getContext('2d'),w=canvas.width,h=canvas.height;
+ ctx.fillStyle='#0d1629';ctx.fillRect(0,0,w,h);
+ const dur=waveDuration||player.duration||0;
+ if(!waveformPeaks.length){ctx.fillStyle='#9cb1dc';ctx.font='14px sans-serif';ctx.fillText(selected?'Waiting for real audio analysis — no simulated waveform':'Select an audio source',16,25);return}
+ const start=Math.max(0,Number($('start').value)||0),end=Math.max(0,Number($('end').value)||0);
+ const zoom=Number($('zoom')?.value||1),visible=dur/zoom,left=Math.max(0,Math.min(dur-visible,waveCenter-visible/2));const tx=t=>(t-left)/visible*w;const x1=Math.max(0,Math.min(w,tx(start))),x2=Math.max(0,Math.min(w,tx(end)));
+ ctx.fillStyle='#223657';ctx.fillRect(x1,0,Math.max(0,x2-x1),h);
+ const barWidth=w/waveformPeaks.length;
+ for(let i=0;i<waveformPeaks.length;i++){
+  const x=tx(i/waveformPeaks.length*dur);if(x<0||x>w)continue;const amplitude=Math.max(1,waveformPeaks[i]*(h-24)*.5);
+  ctx.fillStyle=x>=x1&&x<=x2?'#9bd5ff':'#5379d8';
+  ctx.fillRect(x,h/2-amplitude,Math.max(1,barWidth*zoom*.85),amplitude*2);
+ }
+ for(const [x,color] of [[x1,'#46e1a0'],[x2,'#ffbf69']]){ctx.fillStyle=color;ctx.fillRect(Math.max(0,x-2),0,4,h);ctx.fillRect(Math.max(0,x-6),0,12,13)}
+ if(Number.isFinite(player.currentTime)){ctx.fillStyle='#ffffff';ctx.fillRect(Math.min(w-2,tx(player.currentTime)),0,2,h)}
+ ctx.fillStyle='#e7edff';ctx.font='12px sans-serif';ctx.fillText('Drag green/orange handles • Click elsewhere to seek',12,h-8);
+}
+function waveTime(e){const rect=$('wave').getBoundingClientRect();return Math.max(0,Math.min(waveDuration,(Math.max(0,Math.min(waveDuration-waveDuration/Number($('zoom').value),waveCenter-waveDuration/Number($('zoom').value)/2)))+((e.clientX-rect.left)/rect.width)*(waveDuration/Number($('zoom').value))))}
+$('wave').addEventListener('pointerdown',e=>{
+ if(!waveDuration)return;
+ const t=waveTime(e),threshold=12/$('wave').getBoundingClientRect().width*waveDuration;
+ const a=Number($('start').value),b=Number($('end').value);
+ dragHandle=Math.abs(t-a)<=threshold?'start':Math.abs(t-b)<=threshold?'end':null;
+ if(dragHandle){$('wave').setPointerCapture(e.pointerId);e.preventDefault()}
+ else{player.currentTime=t;drawWave()}
+});
+$('wave').addEventListener('pointermove',e=>{
+ if(!dragHandle)return;
+ const t=waveTime(e),other=Number($(dragHandle==='start'?'end':'start').value);
+ $(dragHandle).value=(dragHandle==='start'?Math.min(t,other-.01):Math.max(t,other+.01)).toFixed(2);
+ drawWave();
+});
+$('wave').addEventListener('pointerup',()=>dragHandle=null);
+$('wave').addEventListener('pointercancel',()=>dragHandle=null);
+$('start').addEventListener('input',drawWave);$('end').addEventListener('input',drawWave);
+player.addEventListener('timeupdate',drawWave);
+player.addEventListener('seeked',drawWave);
+
+let profileClips=null,episodeItems=[];let activePadClip=null;
+function soundboardClips(){return currentProPage().slots.map(slot=>data.clips.find(c=>c.id===slot.clip_id)).filter(Boolean)}
+function emptyProPage(name='Page 1'){return {name,slots:Array.from({length:24},()=>({clip_id:null,label:'',volume:1,color:'#2b3e66',hotkey:'',mode:'toggle'}))}}
+let proProfiles=[],proName='Default',proPages=[emptyProPage()],proPageIndex=0;
+function currentProPage(){return proPages[proPageIndex]||proPages[0]}
+function renderProPads(){
+ const host=$('soundboard');if(!host)return;
+ host.innerHTML=currentProPage().slots.map((slot,i)=>{
+  const clip=data.clips.find(c=>c.id===slot.clip_id),active=clip&&clip.id===activePadClip;
+  const name=slot.label||clip?.title||'Empty pad';const key=i<9?`<small>${i+1}</small>`:'';
+  return `<button class="pad ${clip?'':'empty'} ${active?($('padplayer').paused?'paused':'playing'):''}" onclick="triggerProPad(${i})" oncontextmenu="editProPad(event,${i})" style="background:${/^#[0-9a-f]{6}$/i.test(slot.color||'')?slot.color:'#2b3e66'}" title="${esc(slot.hotkey||'Right-click to configure')}">${active?($('padplayer').paused?'▶':'⏸'):(clip?'▶':'+')} ${esc(name)}${key}</button>`;
+ }).join('');
+}
+function triggerProPad(index){const slot=currentProPage().slots[index];if(!slot?.clip_id)return editProPad(null,index);const a=$('padplayer');a.loop=slot.mode==='loop';a.volume=(Number(slot.volume??1))*Number($('masterPadVolume').value)/100*(mixerPadLiveGain?1:Number($('sbLiveFader')?.value??100)/100);
+ if(slot.mode==='oneshot'&&activePadClip===slot.clip_id&&!a.paused)return;
+ playClip(slot.clip_id);
+}
+function editProPad(event,index){if(event)event.preventDefault();openPadEditor(index)}
+let padEditorSelected=0;
+function goHome(){
+ // Close secondary workspaces without resetting any recordings, clips, or drafts.
+ if($('padEditorOverlay'))$('padEditorOverlay').classList.remove('open');
+ if($('episodeEditor')?.classList.contains('open'))eeClose();
+ if(document.body.classList.contains('liveMode'))toggleLiveMode();
+ window.scrollTo({top:0,behavior:'smooth'});
+}
+function openPadEditor(index=0){padEditorSelected=Math.max(0,Math.min(23,index));$('padEditorOverlay').classList.add('open');renderPadEditor()}
+function closePadEditor(){$('padEditorOverlay').classList.remove('open')}
+function renderPadEditor(){
+ const filter=$('padClipFilter').value.toLowerCase();
+ $('padClipList').innerHTML=data.clips.filter(c=>(c.title+' '+(c.tags||'')).toLowerCase().includes(filter)).map(c=>`<div class="padClipChoice" draggable="true" data-clip-id="${esc(c.id)}" title="Drag onto a pad">♫ ${esc(c.title)}<small style="display:block">${esc(c.tags||'')}</small></div>`).join('')||'<p class="muted">No matching clips</p>';
+ $('padEditorGrid').innerHTML=currentProPage().slots.map((slot,i)=>{let c=data.clips.find(x=>x.id===slot.clip_id);return `<button type="button" class="editorPad ${i===padEditorSelected?'selected':''}" draggable="true" data-pad-index="${i}" style="background:${/^#[0-9a-f]{6}$/i.test(slot.color||'')?slot.color:'#263a5c'}" onclick="selectEditorPad(${i})"><small>${i+1}</small><div>${esc(slot.label||c?.title||'Empty')}</div></button>`}).join('');
+ $('padClipList').querySelectorAll('[data-clip-id]').forEach(el=>el.addEventListener('dragstart',e=>{e.dataTransfer.setData('text/clipforge-clip',el.dataset.clipId);e.dataTransfer.effectAllowed='copy'}));
+ $('padEditorGrid').querySelectorAll('[data-pad-index]').forEach(el=>{
+  el.addEventListener('dragstart',e=>{e.dataTransfer.setData('text/clipforge-pad',el.dataset.padIndex);e.dataTransfer.effectAllowed='move'});
+  el.addEventListener('dragover',e=>{e.preventDefault();el.classList.add('dragover')});
+  el.addEventListener('dragleave',()=>el.classList.remove('dragover'));
+  el.addEventListener('drop',e=>{e.preventDefault();el.classList.remove('dragover');const target=Number(el.dataset.padIndex);const clip=e.dataTransfer.getData('text/clipforge-clip');const from=e.dataTransfer.getData('text/clipforge-pad');if(clip&&data.clips.some(c=>c.id===clip)){currentProPage().slots[target].clip_id=clip;currentProPage().slots[target].label=''}else if(from!==''&&Number.isInteger(Number(from))){const i=Number(from);if(i>=0&&i<24){[currentProPage().slots[i],currentProPage().slots[target]]=[currentProPage().slots[target],currentProPage().slots[i]]}}padEditorSelected=target;renderPadEditor();renderProPads()});
+ });
+ updatePadEditorFields();
+}
+function selectEditorPad(i){padEditorSelected=i;renderPadEditor()}
+function updatePadEditorFields(){const slot=currentProPage().slots[padEditorSelected];$('padEditIndex').value='Pad '+(padEditorSelected+1);$('padEditClip').innerHTML='<option value="">Unassigned</option>'+data.clips.map(c=>`<option value="${esc(c.id)}">${esc(c.title)}</option>`).join('');$('padEditClip').value=slot.clip_id||'';$('padEditLabel').value=slot.label||'';$('padEditVolume').value=Math.round((slot.volume??1)*100);$('padEditVolumeText').textContent=$('padEditVolume').value+'%';$('padEditColor').value=slot.color||'#2b3e66';$('padEditMode').value=slot.mode||'toggle';$('padEditHotkey').value=slot.hotkey||''}
+function applyPadEditorFields(){const slot=currentProPage().slots[padEditorSelected];slot.clip_id=$('padEditClip').value||null;slot.label=$('padEditLabel').value.slice(0,70);slot.volume=Number($('padEditVolume').value)/100;slot.color=$('padEditColor').value;slot.mode=$('padEditMode').value;slot.hotkey=$('padEditHotkey').value;$('padEditVolumeText').textContent=$('padEditVolume').value+'%';renderProPads();$('padEditorGrid').querySelectorAll('[data-pad-index]').forEach(el=>{const i=Number(el.dataset.padIndex);el.style.background=/^#[0-9a-f]{6}$/i.test(currentProPage().slots[i].color||'')?currentProPage().slots[i].color:'#263a5c';const c=data.clips.find(x=>x.id===currentProPage().slots[i].clip_id);el.querySelector('div').textContent=currentProPage().slots[i].label||c?.title||'Empty'})}
+function clearSelectedPad(){currentProPage().slots[padEditorSelected]={clip_id:null,label:'',volume:1,color:'#2b3e66',hotkey:'',mode:'toggle'};renderPadEditor();renderProPads()}
+async function savePadEditorProfile(){await saveProProfile();renderPadEditor()}
+
+// v1.7.7: One live fader for audible soundboard playback AND captured soundboard audio.
+// Existing recording fader (mixPad) remains independent. Automation is canceled on manual input.
+let sbFadeAnimation=0;
+function sbLiveLevel(){return Number($('sbLiveFader')?.value??100)/100}
+function syncSoundboardLiveGain(){
+ const level=sbLiveLevel();
+ if(mixerPadLiveGain){const t=mixerCtx.currentTime;mixerPadLiveGain.gain.cancelScheduledValues(t);mixerPadLiveGain.gain.setValueAtTime(level,t)}
+ setMasterPadVolume();
+}
+function setSoundboardLiveFader(){
+ cancelAnimationFrame(sbFadeAnimation);sbFadeAnimation=0;
+ $('sbLiveFaderValue').textContent=Math.round(sbLiveLevel()*100)+'%';
+ $('sbFadeStatus').textContent='Manual level';syncSoundboardLiveGain();
+}
+function cancelSoundboardFade(){
+ cancelAnimationFrame(sbFadeAnimation);sbFadeAnimation=0;
+ $('sbFadeStatus').textContent='Fade canceled';syncSoundboardLiveGain();
+}
+function fadeSoundboard(direction){
+ const duration=Number($('sbFadeSeconds').value);
+ if(!Number.isFinite(duration)||duration<.2||duration>30){alert('Fade duration must be between 0.2 and 30 seconds');return}
+ cancelAnimationFrame(sbFadeAnimation);sbFadeAnimation=0;
+ const start=direction==='in'?0:sbLiveLevel(),end=direction==='in'?1:0;
+ // Begin fade-in at silence. Fade-out begins at the current live fader position.
+ $('sbLiveFader').value=String(Math.round(start*100));syncSoundboardLiveGain();
+ $('sbLiveFaderValue').textContent=Math.round(start*100)+'%';
+ $('sbFadeStatus').textContent=direction==='in'?'Fading in…':'Fading out…';
+ const started=performance.now();
+ function frame(now){
+  const progress=Math.min(1,(now-started)/(duration*1000));
+  const level=start+(end-start)*progress;
+  $('sbLiveFader').value=String(Math.round(level*100));
+  $('sbLiveFaderValue').textContent=Math.round(level*100)+'%';
+  // Use the unrounded gain for smooth playback; slider is display only during automation.
+  if(mixerPadLiveGain){const t=mixerCtx.currentTime;mixerPadLiveGain.gain.cancelScheduledValues(t);mixerPadLiveGain.gain.setTargetAtTime(level,t,.012)}
+  else setMasterPadVolume();
+  if(progress<1)sbFadeAnimation=requestAnimationFrame(frame);
+  else {sbFadeAnimation=0;$('sbFadeStatus').textContent=direction==='in'?'Fade in complete':'Fade out complete';syncSoundboardLiveGain()}
+ }
+ sbFadeAnimation=requestAnimationFrame(frame);
+}
+function setMasterPadVolume(){const slot=currentProPage().slots.find(x=>x.clip_id===activePadClip);$('padplayer').volume=(slot?.volume??1)*Number($('masterPadVolume').value)/100*(mixerPadLiveGain?1:Number($('sbLiveFader')?.value??100)/100)}
+function updateProSelectors(){const profile=$('proProfile');profile.innerHTML=[...new Set(['Default',...proProfiles.map(p=>p.name),proName])].map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');profile.value=proName;$('proPage').innerHTML=proPages.map((p,i)=>`<option value="${i}">${esc(p.name)}</option>`).join('');$('proPage').value=String(proPageIndex);renderProPads()}
+async function loadProProfiles(){try{const r=await api('/api/soundboard-pro');proProfiles=r.profiles||[];const p=proProfiles.find(p=>p.name===proName);if(p)proPages=structuredClone(p.pages);else if(proName==='Default'&&data.clips.length){proPages=[emptyProPage()];data.clips.slice(0,24).forEach((c,i)=>proPages[0].slots[i].clip_id=c.id)}updateProSelectors()}catch(e){status('Soundboard profiles: '+e.message)}}
+function selectProProfile(){proName=$('proProfile').value;const p=proProfiles.find(x=>x.name===proName);proPages=p?structuredClone(p.pages):[emptyProPage()];if(!p&&proName==='Default')data.clips.slice(0,24).forEach((c,i)=>proPages[0].slots[i].clip_id=c.id);proPageIndex=0;updateProSelectors()}
+function newProProfile(){let n=prompt('New soundboard profile name');if(!n?.trim())return;proName=n.trim().slice(0,80);proPages=[emptyProPage()];proPageIndex=0;updateProSelectors()}
+async function saveProProfile(){try{await api('/api/soundboard-pro/'+encodeURIComponent(proName),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({pages:proPages})});await loadProProfiles();status('Saved soundboard profile '+proName)}catch(e){alert(e.message)}}
+async function deleteProProfile(){if(proName==='Default')return alert('Default cannot be deleted');if(!confirm('Delete soundboard profile '+proName+'? Audio clips are not deleted.'))return;await api('/api/soundboard-pro/'+encodeURIComponent(proName),{method:'DELETE'});proName='Default';proPages=[emptyProPage()];proPageIndex=0;await loadProProfiles()}
+function selectProPage(){proPageIndex=Number($('proPage').value)||0;renderProPads()}
+function addProPage(){if(proPages.length>=12)return alert('Maximum 12 pages');proPages.push(emptyProPage('Page '+(proPages.length+1)));proPageIndex=proPages.length-1;updateProSelectors()}
+function renameProPage(){let n=prompt('Page name',currentProPage().name);if(n?.trim()){currentProPage().name=n.trim().slice(0,60);updateProSelectors()}}
+function zoomToPlayhead(){waveCenter=player.currentTime;drawWave()}
+function isTextEditingTarget(target){return !!(target && target.closest && target.closest('input,textarea,select,[contenteditable], [role="textbox"]'))}
+document.addEventListener('keydown',e=>{if($('padEditorOverlay').classList.contains('open')){if(e.key==='Escape'){closePadEditor();e.preventDefault()}return;}if(isTextEditingTarget(e.target)||isTextEditingTarget(document.activeElement)||e.ctrlKey||e.altKey||e.metaKey)return;let k=e.key.toLowerCase();if(e.shiftKey&&/^Digit[1-9]$/.test(e.code)){let n=Number(e.code.slice(-1))-1;if(n<proPages.length){proPageIndex=n;updateProSelectors();e.preventDefault()}return;}if(k==='escape'){if(activePadClip){e.preventDefault();stopPad()}return}else if(k===' '){e.preventDefault();player.paused?player.play():player.pause()}else if(k==='arrowleft'){e.preventDefault();player.currentTime=Math.max(0,player.currentTime-5)}else if(k==='arrowright'){e.preventDefault();player.currentTime+=5}else if(k==='i')mark('start');else if(k==='o')mark('end');else if(k==='+'||k==='='){$('zoom').value=Math.min(30,Number($('zoom').value)+1);zoomToPlayhead()}else if(k==='-'){$('zoom').value=Math.max(1,Number($('zoom').value)-1);zoomToPlayhead()}else if(e.shiftKey&&/^[1-9]$/.test(k)){let n=Number(k)-1;if(n<proPages.length){proPageIndex=n;updateProSelectors()}}else if(/^[1-9]$/.test(k)){triggerProPad(Number(k)-1)}});
+async function loadSettings(){try{let r=await api('/api/settings');$('storageFolder').value=r.media_folder;$('storageHint').textContent='Only new imports use this folder. Existing media is never moved.'}catch(e){status(e.message)}}
+async function saveStorage(){try{let r=await api('/api/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({media_folder:$('storageFolder').value})});$('storageFolder').value=r.media_folder;status('Storage folder saved')}catch(e){alert(e.message)}}
+async function detectSilence(){if(!selected)return alert('Select source');try{status('Analyzing silence…');let r=await api('/api/source/'+selected+'/silences');$('silenceResults').innerHTML=r.silences.map(s=>`<div class="result" onclick="player.currentTime=${s.start};player.play()">${s.start.toFixed(1)}–${s.end.toFixed(1)}s (${(s.end-s.start).toFixed(1)}s)</div>`).join('')||'No silence above threshold';status('Silence analysis complete')}catch(e){alert(e.message)}}
+async function cleanAudio(){if(!selected)return alert('Select source');try{status('Cleaning audio…');let r=await api('/api/source/'+selected+'/cleanup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:$('cleanupMode').value})});await refresh();selectSource(r.id);status('Cleaned copy created')}catch(e){alert(e.message)}}
+async function suggestClips(){if(!selected)return alert('Select a transcribed source');try{let r=await api('/api/source/'+selected+'/suggestions');$('suggestionResults').innerHTML=r.suggestions.map(s=>`<div class="result" onclick="chooseRange(${s.start},${s.end})">${s.start.toFixed(1)}s · ${esc(s.text)}</div>`).join('')||'Transcribe this source first'}catch(e){alert(e.message)}}
+function chooseRange(a,b){$('start').value=a;$('end').value=b;player.currentTime=a;zoomToPlayhead();window.scrollTo({top:0,behavior:'smooth'})}
+async function semanticSearch(){let q=$('semanticQuery').value.trim();if(!q)return;try{let r=await api('/api/search/semantic?q='+encodeURIComponent(q));$('semanticResults').innerHTML=r.results.map(s=>`<div class="result" onclick="selectSource('${s.source_id}');player.currentTime=${s.start};player.play()"><b>${esc(s.title)}</b> ${s.start.toFixed(1)}s · ${esc(s.text)}</div>`).join('')||'No matching transcript segments'}catch(e){alert(e.message)}}
+async function loadProfiles(){let profiles=await api('/api/soundboards');$('profileSelect').innerHTML='<option value="">Default: recent clips</option>'+profiles.map(p=>`<option value="${esc(p.name)}">${esc(p.name)}</option>`).join('');window.savedProfiles=profiles}
+async function saveProfile(){let name=$('profileName').value.trim();if(!name)return alert('Enter a name');try{await api('/api/soundboards',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,clip_ids:soundboardClips().map(x=>x.id)})});await loadProfiles();$('profileSelect').value=name;loadProfile();status('Soundboard profile saved')}catch(e){alert(e.message)}}
+function loadProfile(){let p=(window.savedProfiles||[]).find(x=>x.name===$('profileSelect').value);profileClips=p?p.clip_ids:null;render()}
+function addEpisodeItem(){let clip=data.clips.find(x=>x.id===$('episodeClip').value);if(!clip)return alert('Save a clip first');episodeItems.push({clip_id:clip.id,track:Number($('episodeTrack').value),offset:Number($('episodeOffset').value),gain:Number($('episodeGain').value)});renderTimeline()}
+function renderTimeline(){$('timelineItems').innerHTML=episodeItems.map((x,i)=>`<div class="item mini">Track ${x.track+1} · ${esc(data.clips.find(c=>c.id===x.clip_id)?.title||'Clip')} · ${x.offset}s · gain ${x.gain} <button class="secondary" onclick="episodeItems.splice(${i},1);renderTimeline()">×</button></div>`).join('')}
+async function renderEpisode(){if(!episodeItems.length)return alert('Add clips');try{status('Mixing episode…');let r=await api('/api/episodes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({title:$('episodeTitle').value||'Episode',items:episodeItems})});status('Episode rendered');await loadEpisodes()}catch(e){alert(e.message);status('Episode render failed')}}
+async function loadEpisodes(){try{let r=await api('/api/episodes');$('episodes').innerHTML=r.episodes.map(e=>`<div class="item mini">${esc(e.title)} <a href="/api/episodes/${e.id}/audio" style="color:#a7bdff">Download MP3</a></div>`).join('')}catch(e){status(e.message)}}
+async function labelSpeakers(){if(!selected)return alert('Select a transcribed source');let source=data.sources.find(x=>x.id===selected),segments=[];try{segments=JSON.parse(source.transcript||'[]')}catch{}if(!segments.length)return alert('Transcribe first');let labels={};for(let i=0;i<segments.length;i++){let name=prompt('Speaker for segment '+(i+1)+' of '+segments.length+' (Cancel to finish):\n'+segments[i].text,segments[i].speaker||'Speaker 1');if(name===null)break;labels[i]=name}if(!Object.keys(labels).length)return;await api('/api/source/'+selected+'/speakers',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({labels})});await refresh();renderTranscript()}
+
+let hotkeyCapture=false;
+function hotkeyFor(e){let parts=[];if(e.ctrlKey)parts.push('Ctrl');if(e.altKey)parts.push('Alt');if(e.shiftKey)parts.push('Shift');if(!/^(Key[A-Z]|Digit[0-9]|F(?:[1-9]|1[0-2]))$/.test(e.code))return '';parts.push(e.code);return parts.join('+')}
+function capturePadHotkey(){hotkeyCapture=true;$('padEditHotkey').value='Press shortcut…'}
+function clearPadHotkey(){currentProPage().slots[padEditorSelected].hotkey='';$('padEditHotkey').value='';renderProPads()}
+document.addEventListener('keydown',e=>{if(!hotkeyCapture)return; e.preventDefault();e.stopImmediatePropagation();hotkeyCapture=false;if(e.key==='Escape'){updatePadEditorFields();return;}const hotkey=hotkeyFor(e);if(!hotkey){alert('Use a letter, number, or F1–F12, optionally with Ctrl/Alt/Shift');updatePadEditorFields();return;}for(let pi=0;pi<proPages.length;pi++)for(let si=0;si<24;si++)if(proPages[pi].slots[si].hotkey===hotkey&&(pi!==proPageIndex||si!==padEditorSelected)){alert('Shortcut already assigned on page '+(pi+1)+', pad '+(si+1));updatePadEditorFields();return;}currentProPage().slots[padEditorSelected].hotkey=hotkey;updatePadEditorFields();renderProPads()},true);
+document.addEventListener('keydown',e=>{if(hotkeyCapture||e.repeat||isTextEditingTarget(e.target)||isTextEditingTarget(document.activeElement)||$('padEditorOverlay').classList.contains('open'))return;const key=hotkeyFor(e);if(!key)return;const i=currentProPage().slots.findIndex(x=>x.hotkey===key&&x.clip_id);if(i>=0){e.preventDefault();e.stopImmediatePropagation();triggerProPad(i)}},true);
+function updateLiveRecordingStatus(){const recording=recorder?.state==='recording';const liveBtn=$('liveRecBtn');if(liveBtn)liveBtn.textContent=recording?'■ Stop '+(recordMode==='mix'?'mixed':'microphone')+' recording':'● Record mixed podcast';const liveStatus=$('liveRecordingStatus');if(liveStatus)liveStatus.textContent=recording?'● Recording '+(recordMode==='mix'?'microphone + soundboard':'microphone')+' — '+($('rectime').textContent||'0s'):(recordBusy?'Saving / preparing recording…':'Recorder idle')}
+// LIVE teleprompter — local script, smooth time-based scrolling, independent of recording.
+let telePlaying=false,teleFrame=0,teleLast=0,teleScroll=0;
+// Keep only safe formatting tags and inline colors. Never execute pasted HTML.
+function teleSanitize(raw){
+  const parsed=new DOMParser().parseFromString('<div>'+raw+'</div>','text/html');
+  const root=parsed.body.firstElementChild;
+  const allowed=new Set(['B','STRONG','I','EM','U','SPAN','FONT','DIV','P','BR']);
+  const clean=node=>{
+    if(node.nodeType===Node.TEXT_NODE)return document.createTextNode(node.textContent);
+    if(node.nodeType!==Node.ELEMENT_NODE)return document.createDocumentFragment();
+    const frag=document.createDocumentFragment();
+    if(!allowed.has(node.tagName)){for(const c of [...node.childNodes])frag.appendChild(clean(c));return frag;}
+    const el=document.createElement(node.tagName==='FONT'?'span':node.tagName.toLowerCase());
+    if(node.tagName==='FONT' && /^#[0-9a-f]{6}$/i.test(node.getAttribute('color')||''))el.style.color=node.getAttribute('color');
+    if(node.tagName==='SPAN' || node.tagName==='FONT'){
+      for(const key of ['color','backgroundColor']){
+        const v=node.style[key];
+        if(v&&(/^(#[0-9a-f]{3,8}|rgb\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*\))$/i.test(v)))el.style[key]=v;
+      }
+    }
+    for(const c of [...node.childNodes])el.appendChild(clean(c));
+    return el;
+  };
+  const result=document.createElement('div');for(const c of [...root.childNodes])result.appendChild(clean(c));return result.innerHTML;
+}
+function teleHtml(){return teleSanitize($('teleScript').innerHTML)}
+function teleSave(){try{localStorage.setItem('clipforge.teleprompter.v1',JSON.stringify({script:$('teleScript').innerText,html:teleHtml(),speed:Number($('teleSpeed').value),size:Number($('teleSize').value),mirror:$('teleMirror').checked}))}catch(e){status('Teleprompter storage unavailable: '+e.message)}}
+function teleUpdateScript(){const view=$('teleViewport');const old=view.scrollTop;$('teleText').innerHTML=teleHtml()||'Your script will appear here.';view.scrollTop=old;teleScroll=view.scrollTop;teleSave();teleFloatSync()}
+function telePaste(e){
+  e.preventDefault();
+  const html=e.clipboardData.getData('text/html');
+  const plain=e.clipboardData.getData('text/plain');
+  if(html)document.execCommand('insertHTML',false,teleSanitize(html));
+  else document.execCommand('insertText',false,plain);
+  teleUpdateScript();
+}
+let teleColorSelection=null,teleHue=0,teleSat=0,teleVal=100,teleWheelReady=false;
+function teleRememberSelection(){const sel=window.getSelection();if(sel&&sel.rangeCount&&$('teleScript').contains(sel.anchorNode)&&$('teleScript').contains(sel.focusNode))teleColorSelection=sel.getRangeAt(0).cloneRange()}
+function teleHSV(h,s,v){s/=100;v/=100;const c=v*s,x=c*(1-Math.abs((h/60)%2-1)),m=v-c;let rgb=h<60?[c,x,0]:h<120?[x,c,0]:h<180?[0,c,x]:h<240?[0,x,c]:h<300?[x,0,c]:[c,0,x];return '#'+rgb.map(n=>Math.round((n+m)*255).toString(16).padStart(2,'0')).join('')}
+function teleWheelDraw(){const canvas=$('teleColorWheel');if(!canvas)return;const ctx=canvas.getContext('2d'),cx=100,cy=100,r=94;ctx.clearRect(0,0,200,200);for(let y=0;y<200;y++)for(let x=0;x<200;x++){const dx=x-cx,dy=y-cy,d=Math.hypot(dx,dy);if(d>r)continue;const hue=(Math.atan2(dy,dx)*180/Math.PI+360)%360;ctx.fillStyle=teleHSV(hue,Math.min(100,d/r*100),teleVal);ctx.fillRect(x,y,1,1)}const a=teleHue*Math.PI/180,rr=teleSat/100*r;ctx.beginPath();ctx.arc(cx+Math.cos(a)*rr,cy+Math.sin(a)*rr,5,0,Math.PI*2);ctx.strokeStyle='#000';ctx.lineWidth=3;ctx.stroke();ctx.strokeStyle='#fff';ctx.lineWidth=1.5;ctx.stroke();const color=teleHSV(teleHue,teleSat,teleVal);$('teleColorHex').value=color;$('teleColorSwatch').style.background=color}
+function teleWheelBrightness(value){teleVal=Number(value);teleWheelDraw()}
+function teleWheelHex(value){if(!/^#[0-9a-f]{6}$/i.test(value)){teleWheelDraw();return}const r=parseInt(value.slice(1,3),16)/255,g=parseInt(value.slice(3,5),16)/255,b=parseInt(value.slice(5,7),16)/255;const max=Math.max(r,g,b),min=Math.min(r,g,b),delta=max-min;teleVal=Math.round(max*100);teleSat=max?Math.round(delta/max*100):0;teleHue=delta===0?0:max===r?60*(((g-b)/delta)%6):max===g?60*((b-r)/delta+2):60*((r-g)/delta+4);teleHue=(teleHue+360)%360;$('teleColorValue').value=teleVal;teleWheelDraw()}
+function teleCloseColorPicker(){$('teleColorPicker').hidden=true;$('teleColorButton').setAttribute('aria-expanded','false')}
+function teleToggleColorPicker(){const picker=$('teleColorPicker');if(!picker.hidden){teleCloseColorPicker();return}picker.hidden=false;$('teleColorButton').setAttribute('aria-expanded','true');if(!teleWheelReady){const canvas=$('teleColorWheel');canvas.addEventListener('pointerdown',e=>{canvas.setPointerCapture(e.pointerId);teleWheelPointer(e)});canvas.addEventListener('pointermove',e=>{if(e.buttons)teleWheelPointer(e)});teleWheelReady=true}teleWheelDraw()}
+function teleWheelPointer(e){const rect=$('teleColorWheel').getBoundingClientRect(),x=(e.clientX-rect.left)*200/rect.width-100,y=(e.clientY-rect.top)*200/rect.height-100;teleHue=(Math.atan2(y,x)*180/Math.PI+360)%360;teleSat=Math.min(100,Math.hypot(x,y)/94*100);teleWheelDraw()}
+function teleApplyWheelColor(){
+  const color=$('teleColorHex').value;
+  if(!/^#[0-9a-f]{6}$/i.test(color))return;
+  const editor=$('teleScript');
+  const range=teleColorSelection;
+  if(!range||range.collapsed||!editor.contains(range.commonAncestorContainer)){
+    status('Select text in the script editor before applying a color.');
+    return;
+  }
+  try{
+    const span=document.createElement('span');
+    span.style.color=color;
+    span.appendChild(range.extractContents());
+    range.insertNode(span);
+    const sel=window.getSelection();
+    sel.removeAllRanges();
+    const applied=document.createRange();applied.selectNodeContents(span);sel.addRange(applied);
+    teleColorSelection=applied.cloneRange();
+    teleUpdateScript(); // Updates the embedded and floating teleprompter, then saves the styled HTML.
+    teleCloseColorPicker();
+    status('Teleprompter text color applied.');
+  }catch(e){status('Unable to apply text color: '+e.message)}
+}
+function teleFormat(command,value){$('teleScript').focus();document.execCommand(command,false,value||null);teleUpdateScript()}
+function teleUpdateControls(){$('teleSpeedLabel').textContent=$('teleSpeed').value;$('teleSizeLabel').textContent=$('teleSize').value;$('teleText').style.fontSize=$('teleSize').value+'px';$('teleText').classList.toggle('teleMirrored',$('teleMirror').checked);teleSave()}
+function teleFrameStep(now){if(!telePlaying)return;const dt=Math.min((now-teleLast)/1000,.1);teleLast=now;const view=$('teleViewport');teleScroll=Math.min(view.scrollHeight-view.clientHeight,teleScroll+dt*Number($('teleSpeed').value));view.scrollTop=teleScroll;if(view.scrollTop>=view.scrollHeight-view.clientHeight-1){telePause();$('teleState').textContent='End of script';return;}teleFrame=requestAnimationFrame(teleFrameStep)}
+function telePause(){telePlaying=false;cancelAnimationFrame(teleFrame);$('telePlay').textContent='▶ Resume scrolling';$('teleState').textContent='Paused'}
+function teleToggle(){if(telePlaying){telePause();return;}const view=$('teleViewport');teleScroll=view.scrollTop;if(view.scrollHeight<=view.clientHeight+1){$('teleState').textContent='Add more script text to scroll';return;}if(teleScroll>=view.scrollHeight-view.clientHeight-1){teleScroll=0;view.scrollTop=0;}telePlaying=true;teleLast=performance.now();$('telePlay').textContent='⏸ Pause scrolling';$('teleState').textContent='Scrolling';teleFrame=requestAnimationFrame(teleFrameStep)}
+function teleReset(){telePause();teleScroll=0;$('teleViewport').scrollTop=0;$('telePlay').textContent='▶ Start scrolling';$('teleState').textContent='Ready'}
+function teleEscape(s){const el=document.createElement('div');el.textContent=s;return el.innerHTML}
+function teleInit(){try{const saved=JSON.parse(localStorage.getItem('clipforge.teleprompter.v1')||'{}');$('teleScript').innerHTML=saved.html?teleSanitize(saved.html):teleEscape(saved.script||'').replace(/\n/g,'<br>');if(Number.isFinite(saved.speed))$('teleSpeed').value=saved.speed;if(Number.isFinite(saved.size))$('teleSize').value=saved.size;$('teleMirror').checked=!!saved.mirror}catch(e){}teleUpdateScript();teleUpdateControls();$('teleViewport').addEventListener('scroll',()=>{if(!telePlaying)teleScroll=$('teleViewport').scrollTop});}
+function showLiveFader(){if(!document.body.classList.contains('liveMode'))toggleLiveMode();requestAnimationFrame(()=>{$('liveSoundboardFader').scrollIntoView({behavior:'smooth',block:'center'});$('sbLiveFader').focus({preventScroll:true})})}
+function toggleLiveMode(){const live=document.body.classList.toggle('liveMode');$('liveToggle').textContent=live?'■ Exit LIVE':'● LIVE';$('liveToggle').setAttribute('aria-pressed',String(live));updateLiveRecordingStatus();status(live?'Live production ready — microphone and episode builder available':'Studio mode enabled');if(live){initMixer().then(()=>proSetLevels()).catch(e=>status('Mixer preview unavailable: '+e.message));proCheckHealth();window.scrollTo({top:0,behavior:'smooth'})}} 
+function nudgeTrim(delta){const a=$('start');const b=$('end');const next=Math.min(Number(b.value)-0.01,Math.max(0,Number(a.value)+delta));a.value=next.toFixed(2);drawWave()}
+async function checkLibraryHealth(){try{const r=await api('/api/library/health');$('libraryHealthResult').textContent=`Sources: ${r.sources.total}, missing ${r.sources.missing.length}. Clips: ${r.clips.total}, missing ${r.clips.missing.length}. Database backups: ${r.backup_count}.`+(r.sources.missing.length||r.clips.missing.length?' Missing: '+[...r.sources.missing,...r.clips.missing].slice(0,10).map(x=>x.title+' ('+x.filename+')').join('; '):' All referenced audio files found.')}catch(e){$('libraryHealthResult').textContent=e.message}}
+async function repairLibraryHealth(){if(!confirm('Back up the database and repair paths for matching audio files?'))return;try{const r=await api('/api/library/health/repair',{method:'POST'});await checkLibraryHealth();status('Repaired '+r.repair.repaired+' file paths')}catch(e){status(e.message)}}
+setInterval(()=>{const a=$('padplayer');if(a&&$('padProgress'))$('padProgress').textContent=activePadClip&&Number.isFinite(a.duration)?`Pad playback: ${a.currentTime.toFixed(1)} / ${a.duration.toFixed(1)}s ${a.loop?'↻ Loop':''}`:''},250);
+
+
+// v1.8.2 floating teleprompter: Document Picture-in-Picture where available.
+// Fallback regular popup cannot guarantee always-on-top. Audio stays in main window.
+let teleFloatWindow=null,teleFloatTimer=null,teleFloatKind='';
+function teleFloatClose(){
+  if(teleFloatTimer){clearInterval(teleFloatTimer);teleFloatTimer=null;}
+  teleFloatWindow=null;teleFloatKind='';
+  const btn=$('telePopBtn');if(btn)btn.textContent='▣ Pop out';
+}
+function teleFloatSync(){
+  const w=teleFloatWindow;if(!w||w.closed){teleFloatClose();return;}
+  try{
+    const d=w.document,txt=d.getElementById('floatText'),view=d.getElementById('floatViewport');
+    if(!txt||!view)return;
+    const script=teleHtml()||'Your script will appear here.';
+    if(txt.innerHTML!==script)txt.innerHTML=script;
+    txt.style.fontSize=$('teleSize').value+'px';
+    txt.style.transform=$('teleMirror').checked?'scaleX(-1)':'none';
+    d.getElementById('floatSpeed').value=$('teleSpeed').value;
+    d.getElementById('floatSpeedValue').textContent=$('teleSpeed').value;
+    d.getElementById('floatSize').value=$('teleSize').value;
+    d.getElementById('floatSizeValue').textContent=$('teleSize').value;
+    d.getElementById('floatMirror').checked=$('teleMirror').checked;
+    d.getElementById('floatPlay').textContent=telePlaying?'⏸ Pause':'▶ Start / Resume';
+    d.getElementById('floatState').textContent=$('teleState').textContent;
+    // Sync proportional position even though floating window has a different viewport height.
+    const main=$('teleViewport'),mainMax=Math.max(1,main.scrollHeight-main.clientHeight);
+    const floatMax=Math.max(0,view.scrollHeight-view.clientHeight);
+    if(!view.dataset.dragging)view.scrollTop=(main.scrollTop/mainMax)*floatMax;
+  }catch(e){teleFloatClose();}
+}
+function teleFloatBuild(w){
+  const d=w.document;
+  d.open();d.write(`<!doctype html><html><head><meta charset="utf-8"><title>ClipForge Teleprompter</title><style>
+  *{box-sizing:border-box}body{margin:0;background:#0b101b;color:#f1f5fa;font:13px Segoe UI,Arial,sans-serif;display:flex;flex-direction:column;height:100vh}
+  header{padding:9px 12px;background:#18243a;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+  strong{font-size:14px}button{background:#167f89;border:1px solid #39b7c1;color:white;padding:6px 9px;border-radius:6px;cursor:pointer}button.secondary{background:#34445e;border-color:#5b6c85}
+  .controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 12px;background:#141f32}
+  label{font-size:11px;display:flex;align-items:center;gap:5px}input[type=range]{width:76px;accent-color:#39b7c1}
+  #floatViewport{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;background:#05080e}
+  #floatText{padding:30vh 20px 65vh;white-space:pre-wrap;overflow-wrap:anywhere;text-align:center;line-height:1.55;font-weight:650;font-size:30px}
+  footer{padding:5px 10px;color:#aab9d0;background:#141f32;font-size:11px}
+  </style></head><body><header><strong>📜 ClipForge Teleprompter</strong><span id="floatState">Ready</span></header>
+  <div class="controls"><button id="floatPlay">▶ Start / Resume</button><button class="secondary" id="floatReset">↺ Reset</button>
+  <label>Speed <input type="range" id="floatSpeed" min="0" max="200" step="5"><span id="floatSpeedValue"></span></label>
+  <label>Size <input type="range" id="floatSize" min="18" max="64" step="2"><span id="floatSizeValue"></span></label>
+  <label><input type="checkbox" id="floatMirror">Mirror</label></div>
+  <div id="floatViewport"><div id="floatText"></div></div><footer>Controls stay linked to ClipForge. Keep the main studio tab open.</footer></body></html>`);d.close();
+  d.getElementById('floatPlay').addEventListener('click',()=>{teleToggle();teleFloatSync()});
+  d.getElementById('floatReset').addEventListener('click',()=>{teleReset();teleFloatSync()});
+  d.getElementById('floatSpeed').addEventListener('input',e=>{$('teleSpeed').value=e.target.value;teleUpdateControls();teleFloatSync()});
+  d.getElementById('floatSize').addEventListener('input',e=>{$('teleSize').value=e.target.value;teleUpdateControls();teleFloatSync()});
+  d.getElementById('floatMirror').addEventListener('change',e=>{$('teleMirror').checked=e.target.checked;teleUpdateControls();teleFloatSync()});
+  const v=d.getElementById('floatViewport');
+  let releaseTimer;
+  v.addEventListener('scroll',()=>{if(!v.dataset.dragging)return;const m=$('teleViewport');m.scrollTop=(v.scrollTop/Math.max(1,v.scrollHeight-v.clientHeight))*Math.max(0,m.scrollHeight-m.clientHeight);teleScroll=m.scrollTop;});
+  v.addEventListener('pointerdown',()=>{v.dataset.dragging='1';clearTimeout(releaseTimer)});
+  v.addEventListener('pointerup',()=>{releaseTimer=setTimeout(()=>{delete v.dataset.dragging},300)});
+  w.addEventListener('pagehide',()=>{if(teleFloatWindow===w)teleFloatClose()});
+  teleFloatSync();teleFloatTimer=setInterval(teleFloatSync,80);
+  $('telePopBtn').textContent='▣ Focus floating';
+}
+async function telePopOut(){
+  if(teleFloatWindow&&!teleFloatWindow.closed){teleFloatWindow.focus();return;}
+  try{
+    let w;
+    if(window.documentPictureInPicture&&typeof window.documentPictureInPicture.requestWindow==='function'){
+      w=await window.documentPictureInPicture.requestWindow({width:640,height:520});teleFloatKind='picture-in-picture';
+    }else{
+      w=window.open('','clipforgeTeleprompter','popup=yes,width=680,height=580,resizable=yes,scrollbars=no');teleFloatKind='popup';
+      if(!w){alert('Chrome blocked the popup. Allow popups for ClipForge, then try again.');return;}
+      status('Floating teleprompter opened as regular popup; always-on-top requires Chrome Document Picture-in-Picture.');
+    }
+    teleFloatWindow=w;teleFloatBuild(w);
+  }catch(e){teleFloatClose();status('Unable to pop out teleprompter: '+e.message);}
+}
+
+teleInit();drawWave();refresh().then(loadProProfiles);loadSettings();loadProfiles();loadEpisodes();
+
+requestAnimationFrame(proUpdateMeters);
+window.addEventListener('beforeunload',e=>{if(recorder?.state==='recording'){e.preventDefault();e.returnValue='Recording in progress';}});
+
+// v1.9: isolated, non-destructive episode timeline. Existing episode builder is untouched.
+let eeItems=[],eeSelected=-1,eeHistory=[],eeFuture=[],eeAudioCtx=null,eeNodes=[],eeCache=new Map(),eePlayStart=0;
+const eeNum=(v,d=0)=>Number.isFinite(Number(v))?Number(v):d;
+const eeClip=id=>data.clips.find(c=>c.id===id);
+const eeLength=x=>Math.max(.05,eeNum(x.end)-eeNum(x.start));
+function eeMsg(t){$('eeStatus').textContent=t}
+function eeSnapshot(){eeHistory.push(JSON.stringify(eeItems));if(eeHistory.length>70)eeHistory.shift();eeFuture=[]}
+document.addEventListener('keydown',e=>{if(!$('episodeEditor').classList.contains('open'))return;if(e.key!=='Delete'&&e.key!=='Backspace')return;if(e.target.closest('input,textarea,select,[contenteditable]'))return;if(eeSelected<0)return;e.preventDefault();eeRemove()});
+function eeOpen(){$('episodeEditor').classList.add('open');eeList();eeDraw();eeMsg('Editor ready · originals remain unchanged')}
+function eeClose(){eeStop();$('episodeEditor').classList.remove('open')}
+function eeList(){let q=$('eeSearch').value.toLowerCase();$('eeClips').innerHTML=data.clips.filter(c=>c.title.toLowerCase().includes(q)).map(c=>`<div class="eeClip" onclick="eeAdd('${c.id}')">＋ ${esc(c.title)} <small>${Math.max(.1,eeNum(c.end)-eeNum(c.start)).toFixed(1)}s</small></div>`).join('')||'<div class="eeNotice">Save some clips first, or import and clip a recording.</div>'}
+function eeAdd(id){let c=eeClip(id);if(!c)return;eeSnapshot();let track=eeNum($('eeAddTrack').value);let last=eeItems.filter(x=>x.track===track).reduce((m,x)=>Math.max(m,x.offset+eeLength(x)),0);eeItems.push({clip_id:id,track,offset:last,gain:1,start:0,end:Math.max(.05,eeNum(c.end)-eeNum(c.start)),fade_in:0,fade_out:0});eeSelected=eeItems.length-1;eeDraw()}
+function eeUndo(){if(!eeHistory.length)return;eeFuture.push(JSON.stringify(eeItems));eeItems=JSON.parse(eeHistory.pop());eeSelected=-1;eeDraw()}
+function eeRedo(){if(!eeFuture.length)return;eeHistory.push(JSON.stringify(eeItems));eeItems=JSON.parse(eeFuture.pop());eeSelected=-1;eeDraw()}
+function eeClear(){if(eeItems.length&&!confirm('Start a new episode timeline? Save a draft first if needed.'))return;eeSnapshot();eeItems=[];eeSelected=-1;eeDraw()}
+function eeSave(){try{let key='clipforge.episode.v19.'+$('eeTitle').value.trim();if(!key.endsWith('.')&&eeItems.length){localStorage.setItem(key,JSON.stringify({version:1,title:$('eeTitle').value,items:eeItems,updated:new Date().toISOString()}));eeMsg('Draft saved in this browser. Export audio separately for a permanent copy.')}else alert('Name the episode and add a clip.')}catch(e){alert('Could not save draft: '+e.message)}}
+function eeLoad(){let names=Object.keys(localStorage).filter(k=>k.startsWith('clipforge.episode.v19.')).sort();if(!names.length)return alert('No episode drafts saved in this browser');let chosen=prompt('Enter the exact draft name:\n'+names.map(k=>k.split('v19.')[1]).join('\n'),names[names.length-1].split('v19.')[1]);if(!chosen)return;try{let doc=JSON.parse(localStorage.getItem('clipforge.episode.v19.'+chosen));if(!doc||!Array.isArray(doc.items))throw Error('Invalid draft');eeSnapshot();eeItems=doc.items.filter(x=>eeClip(x.clip_id));$('eeTitle').value=doc.title||chosen;eeSelected=-1;eeDraw();eeMsg('Draft loaded')}catch(e){alert('Could not open draft: '+e.message)}}
+function eeResizeClip(i,edge,delta){
+ const x=eeItems[i],c=x&&eeClip(x.clip_id);if(!x||!c)return;
+ const full=Math.max(.05,eeNum(c.end)-eeNum(c.start));
+ if(edge==='right'){x.end=Math.max(x.start+.05,Math.min(full,Math.round((x.end+delta)*100)/100));}
+ else {let oldEndTime=x.offset+(x.end-x.start),start=Math.max(0,Math.min(x.end-.05,Math.round((x.start+delta)*100)/100));x.offset=Math.max(0,Math.round((oldEndTime-(x.end-start))*100)/100);x.start=start;}
+ const length=x.end-x.start;
+ x.fade_in=Math.min(x.fade_in,length);x.fade_out=Math.min(x.fade_out,Math.max(0,length-x.fade_in));
+}
+function eeDraw(){let scale=eeNum($('eeZoom').value,20);let duration=Math.max(30,...eeItems.map(x=>x.offset+eeLength(x)+3));let width=Math.ceil(duration*scale);$('eeDuration').textContent=eeItems.length+' clips · '+duration.toFixed(1)+'s timeline';let ruler=$('eeRuler');ruler.style.width=width+'px';ruler.innerHTML='';for(let t=0;t<=duration;t+=Math.max(1,Math.ceil(65/scale))){let tick=document.createElement('span');tick.style.left=(t*scale)+'px';tick.textContent=t+'s';ruler.appendChild(tick)}
+let host=$('eeTracks');host.innerHTML='';for(let t=0;t<8;t++){let lane=document.createElement('div');lane.className='eeLane';let name=document.createElement('div');name.className='eeTrackName';name.textContent='Track '+(t+1);let track=document.createElement('div');track.className='eeTrack';track.style.width=width+'px';track.style.minWidth=width+'px';eeItems.forEach((x,i)=>{if(x.track!==t)return;let c=eeClip(x.clip_id);let b=document.createElement('div');b.className='eeBlock'+(eeSelected===i?' selected':'');b.style.left=(x.offset*scale)+'px';b.style.width=Math.max(8,eeLength(x)*scale)+'px';b.title='Drag to move · '+(c?.title||'Missing clip');b.innerHTML='<canvas></canvas><span>'+esc(c?.title||'Missing clip')+'</span><div class="eeHandle left" title="Drag to trim start"></div><div class="eeHandle right" title="Drag to trim end"></div><button class="eeDelete" type="button" title="Remove from timeline">×</button>';
+b.querySelector('.eeDelete').onclick=e=>{e.stopPropagation();eeSelected=i;eeRemove()};
+b.onclick=e=>{if(e.target.closest('.eeDelete'))return;eeSelected=i;eeDraw()};
+b.onpointerdown=e=>{if(e.button!==0||e.target.closest('.eeDelete'))return;e.preventDefault();e.stopPropagation();eeSelected=i;eeSnapshot();let origin=e.clientX,initial={...x};let edge=e.target.classList.contains('eeHandle')?(e.target.classList.contains('left')?'left':'right'):null;
+b.setPointerCapture(e.pointerId);
+b.onpointermove=ev=>{if(!b.hasPointerCapture(ev.pointerId))return;let delta=(ev.clientX-origin)/scale;Object.assign(x,initial);if(edge){eeResizeClip(i,edge,delta);b.style.left=(x.offset*scale)+'px';b.style.width=Math.max(8,eeLength(x)*scale)+'px'}else{x.offset=Math.max(0,Math.round((initial.offset+delta)*100)/100);b.style.left=(x.offset*scale)+'px'}};
+b.onpointerup=()=>{b.onpointermove=null;b.onpointerup=null;eeDraw()};b.onpointercancel=()=>{Object.assign(x,initial);b.onpointermove=null;b.onpointerup=null;eeDraw()};};track.appendChild(b);eeWave(b.querySelector('canvas'),x)});lane.append(name,track);host.appendChild(lane)}eeFields()}
+async function eeWave(canvas,x){let clip=eeClip(x.clip_id);if(!clip)return;try{let buf=await eeDecode(x.clip_id);if(!canvas.isConnected)return;let w=Math.max(12,Math.min(600,Math.round(eeLength(x)*20)));canvas.width=w;canvas.height=42;let ctx=canvas.getContext('2d'),samples=buf.getChannelData(0);let a=Math.floor(x.start*buf.sampleRate),b=Math.min(samples.length,Math.floor(x.end*buf.sampleRate));ctx.strokeStyle='#c6e6ff';for(let j=0;j<w;j++){let lo=a+Math.floor((b-a)*j/w),hi=a+Math.floor((b-a)*(j+1)/w),peak=0;for(let k=lo;k<hi;k+=Math.max(1,Math.floor((hi-lo)/30)))peak=Math.max(peak,Math.abs(samples[k]||0));ctx.beginPath();ctx.moveTo(j,21-peak*19);ctx.lineTo(j,21+peak*19);ctx.stroke()}}catch(e){/* waveform unavailable; editing remains usable */}}
+function eeFields(){let x=eeItems[eeSelected],el=$('eeFields');if(!x){el.innerHTML='<div class="eeNotice">Select a clip block to edit.</div>';return}let clip=eeClip(x.clip_id),full=Math.max(.05,eeNum(clip?.end)-eeNum(clip?.start));let fields=[['track','Track',0,7,1],['offset','Position (s)',0,14400,.1],['start','Trim start (s)',0,full,.1],['end','Trim end (s)',0,full,.1],['gain','Gain (0–3)',0,3,.05],['fade_in','Fade in (s)',0,full,.1],['fade_out','Fade out (s)',0,full,.1]];el.innerHTML=fields.map(([key,label,min,max,step])=>`<label>${label}<input type="number" data-ee="${key}" value="${x[key]}" min="${min}" max="${max}" step="${step}" onchange="eeChange('${key}',this.value)"></label>`).join('')+`<div class="eeNotice">${esc(clip?.title||'Missing clip')} · Source ${full.toFixed(1)}s</div>`}
+function eeChange(k,v){let x=eeItems[eeSelected];if(!x)return;let n=Number(v);if(!Number.isFinite(n))return;let clip=eeClip(x.clip_id),full=eeNum(clip?.end)-eeNum(clip?.start);let draft={...x,[k]:n};if(!Number.isInteger(draft.track)||draft.track<0||draft.track>7||draft.offset<0||draft.offset>14400||draft.start<0||draft.end>full+.01||draft.end-draft.start<.05||draft.gain<0||draft.gain>3||draft.fade_in<0||draft.fade_out<0||draft.fade_in+draft.fade_out>draft.end-draft.start+.001){alert('Invalid edit: trim must stay within clip, fades within trimmed duration, gain 0–3.');eeFields();return}eeSnapshot();Object.assign(x,draft);eeDraw()}
+function eeRemove(){if(eeSelected<0)return;eeSnapshot();eeItems.splice(eeSelected,1);eeSelected=-1;eeDraw()}
+function eeDuplicate(){let x=eeItems[eeSelected];if(!x)return;eeSnapshot();eeItems.push({...x,offset:x.offset+eeLength(x)});eeSelected=eeItems.length-1;eeDraw()}
+function eeSplit(){let x=eeItems[eeSelected];if(!x)return;let at=eeNum($('eePlayhead').value)-x.offset;if(at<=.05||at>=eeLength(x)-.05)return alert('Set playhead inside selected clip.');eeSnapshot();let left={...x,end:x.start+at,fade_out:0},right={...x,start:x.start+at,offset:x.offset+at,fade_in:0};eeItems.splice(eeSelected,1,left,right);eeSelected++;eeDraw()}
+async function eeDecode(id){if(eeCache.has(id))return eeCache.get(id);let ctx=eeAudioCtx||(eeAudioCtx=new (window.AudioContext||window.webkitAudioContext)());let response=await fetch('/api/clip/'+encodeURIComponent(id)+'/audio');if(!response.ok)throw Error('Missing audio: '+id);let buf=await ctx.decodeAudioData(await response.arrayBuffer());eeCache.set(id,buf);return buf}
+function eeStop(){eeNodes.forEach(n=>{try{n.stop()}catch{}});eeNodes=[];eeMsg('Preview stopped')}
+async function eePreview(){if(!eeItems.length)return alert('Add a clip first');eeStop();let ctx=eeAudioCtx||(eeAudioCtx=new (window.AudioContext||window.webkitAudioContext)());await ctx.resume();let at=Math.max(0,eeNum($('eePlayhead').value));try{eeMsg('Loading preview audio…');let ids=[...new Set(eeItems.map(x=>x.clip_id))];await Promise.all(ids.map(eeDecode));let base=ctx.currentTime+.15;for(let x of eeItems){let start=Math.max(at,x.offset),length=eeLength(x)-(start-x.offset);if(length<=0)continue;let source=ctx.createBufferSource(),gain=ctx.createGain();source.buffer=eeCache.get(x.clip_id);source.connect(gain).connect(ctx.destination);let t=base+start-at,level=x.gain,fi=Math.max(0,x.fade_in),fo=Math.max(0,x.fade_out),end=x.offset+eeLength(x);gain.gain.setValueAtTime(0,t);let valueAtStart=level*(fi>0?Math.min(1,(start-x.offset)/fi):1)*(fo>0?Math.min(1,(end-start)/fo):1);gain.gain.setValueAtTime(valueAtStart,t);let fadeInEnd=x.offset+fi;if(fi>0&&fadeInEnd>start)gain.gain.linearRampToValueAtTime(level,t+fadeInEnd-start);let fadeOutStart=end-fo;if(fo>0){let from=Math.max(start,fadeOutStart);gain.gain.setValueAtTime(level,t+Math.max(0,from-start));gain.gain.linearRampToValueAtTime(0,t+end-start)}source.start(t,x.start+(start-x.offset),length);source.stop(t+length);eeNodes.push(source)}eeMsg('Preview playing from '+at.toFixed(1)+'s · Stop to cancel')}catch(e){eeStop();alert('Preview failed: '+e.message)}}
+async function eeExport(){if(!eeItems.length)return alert('Add clips first');let button=$('eeExportBtn');if(button)button.disabled=true;try{eeMsg('Rendering episode…');let result=await api('/api/episodes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({title:$('eeTitle').value||'Episode',items:eeItems,format:$('eeFormat').value,normalize:$('eeNormalize').checked})});let ext=$('eeFormat').value;$('eeExports').innerHTML=`Export complete: <a href="/api/episodes/${encodeURIComponent(result.id)}/audio" download="${esc($('eeTitle').value)}.${ext}" style="color:#9fd7ff">Download ${ext.toUpperCase()}</a>`;eeMsg('Episode rendered successfully');await loadEpisodes()}catch(e){alert('Export failed: '+e.message);eeMsg('Export failed')}finally{if(button)button.disabled=false}}
+</script></body></html>
